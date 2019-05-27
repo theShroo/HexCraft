@@ -1,0 +1,22 @@
+Texture2D meshTexture;
+SamplerState samplerType;
+
+struct PixelInput
+{
+	float4 position : SV_POSITION;
+	float4 colour : COLOR;
+	float3 normal : NORMAL;
+	float2 uv : TEXCOORD;
+};
+
+float4 main(PixelInput input) : SV_TARGET
+{
+	//A hard coded directional light. We will eventually be setting this via code
+	float3 lightDirection = {0.0f, 0.894427f, -0.447214f};
+
+	float diffuse = max(0, dot(normalize(input.normal), lightDirection));
+	float4 textureColour = meshTexture.Sample(samplerType, input.uv);
+
+	return saturate(textureColour * diffuse);
+
+}
