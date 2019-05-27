@@ -142,3 +142,7 @@ notes::
 	- TLDR: rays cause problems.
 	
 
+--------------------------------------
+Version 0.2.0
+
+updated version to VS 2019, and modified the settings and dependancies to make it work.
