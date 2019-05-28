@@ -11,11 +11,12 @@
 #include "Hex.h"
 
 // Cell struct, describes the contents of each cell. location is not required by the cell, so no hex is stored.
+class Cluster;
 
 class Cell {
 public:
 	
-	Cell(DirectX::XMVECTOR location, Map* map);
+	Cell(DirectX::XMVECTOR location, Cluster* map);
 	void Render(Direct3D* renderer, Camera* cam);
 	void SetType(std::string new_type, bool passable, bool solid);
 	std::string GetType();
@@ -37,7 +38,6 @@ private:
 	Cell** (Cell::*m_initialised)();
 	Cell** _GetNeigbours();
 	Cell** _GetNeigboursInit();
-	Map* m_owner;
 	Cell* m_neighbours[20];  // notable locations: index 9 is the cell below.
 	bool m_passable;
 	bool m_solid;
@@ -52,6 +52,8 @@ private:
 	std::string m_type;
 	GameObject* m_gameObject;
 	DirectX::XMVECTOR m_position;
+	Cluster* m_cluster;
+	Map* m_owner;
 
 };
 

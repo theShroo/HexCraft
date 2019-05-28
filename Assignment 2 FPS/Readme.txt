@@ -146,3 +146,17 @@ notes::
 Version 0.2.0
 
 updated version to VS 2019, and modified the settings and dependancies to make it work.
+
+
+---------------------------------------
+
+Version 0.2.1
+
+-Added Cluster class, and moved a lot of core map logic and code into the class
+-fixed a bunch of errors in code to make it compile and runnning
+	-performance has been negativly impacted at this stage, new logic requires additional calls, but will allow for other optimisations later down the line (current render distance is 24.)
+	
+-moved hex math logic into the hex class
+-revised class and header dependancies to allow the code to compile and run.
+-going to sleep now :/
+	

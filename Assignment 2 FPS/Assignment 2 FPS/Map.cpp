@@ -3,56 +3,12 @@
 #include "Bullets.h"
 #include "AIPlayer.h"
 #include "FPSPlayer.h"
+#include "Cell.h"
+
+constexpr int CLUSTERSIZE = 15;
 
 using namespace DirectX;
 
-XMVECTOR Map::HexToVector(Hex coordinates) {
-	return MathsHelper::GetXMVECTOR3(1.732f*(coordinates.x + (float)coordinates.y /2), coordinates.w, (float)3/2 * coordinates.y);
-}
-
-// this function takes Hex data as an xmfloat4 and rounds it to the nearest hex.
-Hex Map::Float4ToHex(XMFLOAT4 coordinates) {
-
-	float rx = round(coordinates.x);
-	float ry = round(coordinates.y);
-	float rz = round(coordinates.z);
-
-	float x_diff = abs(rx - coordinates.x);
-	float y_diff = abs(ry - coordinates.y);
-	float z_diff = abs(rz - coordinates.z);
-
-	if (x_diff > y_diff && x_diff > z_diff) {
-		rx = -ry - rz;
-	}
-	else if (y_diff > z_diff) {
-		ry = -rx - rz;
-	}
-	else {
-		rz = -rx - ry;
-	}
-	return Hex{ int(rx), int(ry), int(rz), int(round(coordinates.w))};
-}
-
-Hex Map::VectorToHex(XMVECTOR coordinates) {
-	// this conversion code gets a little messy, but without it the getlocal function (the most noticable of the functions that use this conversion)
-	// would all generate a poisitional bias as the distcance from 0 increases
-	// this function also converts the XMVECTOR coordinates to hex format, but leaves the floating point data intact for the xmfloat to hex function to round correctly
-
-
-	XMFLOAT4 coords;
-	XMStoreFloat4(&coords, coordinates);
-	coords.x = (coords.x * 1.732f / 3) - (coords.z / 3);
-	coords.z /= 1.5f;
-	return Float4ToHex(XMFLOAT4(coords.x, coords.z, -coords.x - coords.z, coords.y));
-}
-
-XMFLOAT4 Map::LerpHex(Hex a, Hex b, float t){
-	XMFLOAT4 result(MathsHelper::LerpFloat(a.x, b.x, t),
-		MathsHelper::LerpFloat(a.y, b.y, t),
-		MathsHelper::LerpFloat(a.z, b.z, t),
-		MathsHelper::LerpFloat(a.w, b.w, t));
-	return result;
-}
 
 
 Map::Map() {
@@ -68,13 +24,17 @@ Map::Map() {
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_spawnchance = std::uniform_int_distribution<int> (1, 1000000);
 	m_simplexNoise = new SimplexNoise(0.003f, 200.0f);
+	// Initialise cluster logic.
+
 }
+
 
 
 // because we are storing references in the hash table we need to delete all the cells stored in the hash table manually, and we do this by iterating over the table.
 // and deleting the "second", (this is the element of the dictionary entry that stores the 'object', the "first" element is the 'key'.)
 Map::~Map() {
-	std::unordered_map<Hex, Cell*, hash_Hex>::iterator terminator;
+	//TODO Update this for Chunk logic
+std::unordered_map<Hex, Cluster*, hash_Hex>::iterator terminator;
 	for (terminator = m_map.begin(); terminator != m_map.end(); terminator++) {
 		if (terminator->second) {
 			delete terminator->second;
@@ -84,24 +44,17 @@ Map::~Map() {
 }
 
 
-// the get cell function, which checks for the cell, and makes a new cell if none exists.
-// the default cell is unpassable, and contains no items, this allows the map to correctly return cells outside the predefined map area.
+// Get Cell function updated in the map class, it now passes a loarge chunk of logic into the cluster class, 
+// and breaks the map up into predefined 'chunks' to allow for smooth loading and unloading of cell groups
+
 Cell* Map::GetCell(Hex cell) {
-	if (m_map.count(cell) < 1) {
-		Cell* newCell = new Cell(HexToVector(cell), this);
-		m_map[cell] = newCell;
-		float surface = (m_simplexNoise->fractal(5, float(cell.x)* 10.0 / 9.0f, float(cell.y)* 10.0 / 9.0f)) * 30;
-		if (cell.w < surface) {
-			if (cell.w < surface - 10) {
-				newCell->SetType("Cobblestone", 0, 1);
-				newCell->SetHealth(15);
-			}
-			else {
-				m_map[cell]->SetType("Dirt", 0, 1);
-			}
-		}
+	// for the target cell we need to locate its cluster 
+	Hex clusterLoc = Hex::smalltobig(cell, CLUSTERSIZE);
+	if (m_map.count(clusterLoc) < 1) {
+		m_map[clusterLoc] = new Cluster(clusterLoc, this);
 	}
-	return m_map[cell];
+	
+	return m_map[clusterLoc]->GetCell(cell);
 }
 // add an overload to accept coordinates.
 Cell* Map::GetCell(int x, int y, int height) {
@@ -271,7 +224,7 @@ void Map::Update(float timestep, XMVECTOR center, std::unordered_map < PointerKe
 	for (int i = 0; i < entitiesToUpdate.size(); i++) {
 		GameObject* entity = entitiesToUpdate[i];
 		entity->Update(timestep);															// update them.
-		Hex newHex = VectorToHex(entity->GetPosition());
+		Hex newHex = Hex::VectorToHex(entity->GetPosition());
 		if (newHex != entity->GetLocation()->GetLocation()) {
 			if (entity->GetPlayer()) {
 				Cell* cell = GetCell(newHex);
@@ -302,7 +255,7 @@ void Map::Update(float timestep, XMVECTOR center, std::unordered_map < PointerKe
 			updatables.erase(*cell);
 			m_renderCheckQueue.push_back(cell);						// and retest for renderability
 		}
-		Hex hex = VectorToHex(entity->GetPosition());
+		Hex hex = Hex::VectorToHex(entity->GetPosition());
 		cell = GetCell(hex);
 		cell->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
 		entity->SetLocation(cell);													// update the objects location.							
@@ -342,7 +295,7 @@ void Map::Update(float timestep, XMVECTOR center, std::unordered_map < PointerKe
 // the map is an object container holding renderable objects, so we need a special iterator render only the correct items.
 void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables) {
 	// check changed cells for rendering
-	Hex here = VectorToHex(location);
+	Hex here = Hex::VectorToHex(location);
 	for (int i = 0; i < m_renderCheckQueue.size(); i++) {
 		Cell* cell = m_renderCheckQueue[i];
 		if (cell) {
@@ -360,6 +313,11 @@ void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam, std::u
 	for (auto i = renderables.begin(); i != renderables.end(); i++) {
 		i->second->Render(renderer, cam);
 	}
+}
+
+SimplexNoise* Map::simplexNoise()
+{
+	return m_simplexNoise;
 }
 
 
@@ -419,16 +377,16 @@ void Map::GetRing(std::vector<Hex> &HexList, Hex center, int radius) {
 void Map::GetLine(std::vector<Hex> &HexList, Hex a, Hex b) {
 	int samples = a.distance(b) + 1;
 	for (int i = 0; i < samples; i++) {
-		HexList.push_back(Float4ToHex(LerpHex(a, b, (1.0f / samples)*i)));
+		HexList.push_back(Hex::Float4ToHex(Hex::LerpHex(a, b, (1.0f / samples)*i)));
 	}
 }
 
 void Map::AddObject(GameObject* object) {
-	m_additionQueue.push_back({ object, VectorToHex(object->GetPosition()) });
+	m_additionQueue.push_back({ object, Hex::VectorToHex(object->GetPosition()) });
 }
 
 void  Map::RemoveObject(GameObject* object) {
-	m_removalQueue.push_back({ object, VectorToHex(object->GetPosition()) });															// remove the object from its cell.
+	m_removalQueue.push_back({ object, Hex::VectorToHex(object->GetPosition()) });															// remove the object from its cell.
 }
 
 // method for pathing ai to a given location, provides a list of accessable hexes from a given start point. not yet implemented

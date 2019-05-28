@@ -4,17 +4,18 @@
 
 using namespace DirectX;
 
-Cell::Cell(XMVECTOR position, Map* map) {
+Cell::Cell(XMVECTOR position, Cluster* owner) {
 	m_type = "Air";
 	m_position = position;
-	m_location = Map::VectorToHex(m_position);
+	m_location = Hex::VectorToHex(m_position);
 	m_gameObject = new GameObject(position, "Diffuse Texture Fog Shader", "Hexagon", m_type);
 	m_gameObject->Update(0.0f);
 	m_passable = true;
 	m_health = 1;
-	m_owner = map;
 	m_solid = false;
 	m_initialised = &Cell::_GetNeigboursInit;
+	m_cluster = owner;
+	m_owner = owner->GetOwner();
 }
 
 Cell::~Cell() {

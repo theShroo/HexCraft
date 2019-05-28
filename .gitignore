@@ -1,3 +1,4 @@
 *.ipch
 *.ipdb
 *.iobj
+*.tlog

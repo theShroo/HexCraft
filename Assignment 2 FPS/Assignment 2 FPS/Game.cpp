@@ -8,6 +8,7 @@
 #include "Bullets.h"
 #include "AIPlayer.h"
 
+
 using namespace DirectX;
 
 Game::Game()
@@ -219,7 +220,7 @@ void Game::RefreshUI()
 	m_highScoreText = ss.str();
 
 	m_positionstring = m_player->GetPositionString();
-	Hex location = Map::VectorToHex(m_player->GetPosition());
+	Hex location = Hex::VectorToHex(m_player->GetPosition());
 	m_hexstring = L"X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 	if (m_input->GetKeyDown(VK_F3)) {
 		if (m_debug) {

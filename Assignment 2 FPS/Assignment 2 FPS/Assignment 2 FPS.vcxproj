@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="AIController.h" />
     <ClInclude Include="AIPlayer.h" />
+    <ClInclude Include="Cluster.h" />
     <ClInclude Include="Loot.h" />
     <ClInclude Include="Bullets.h" />
     <ClInclude Include="Button.h" />
@@ -69,6 +70,7 @@
   <ItemGroup>
     <ClCompile Include="AIController.cpp" />
     <ClCompile Include="AIPlayer.cpp" />
+    <ClCompile Include="Cluster.cpp" />
     <ClCompile Include="Loot.cpp" />
     <ClCompile Include="Bullets.cpp" />
     <ClCompile Include="Button.cpp" />

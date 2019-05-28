@@ -1,7 +1,6 @@
 #ifndef MAP_H
 #define MAP_H
-#include "Hex.h"
-#include "Cell.h"
+#include "Cluster.h"
 #include "Collisions.h"
 #include "SimplexNoise.h"
 
@@ -18,10 +17,13 @@ struct qpair {
 
 class Map {
 private:
-	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
-	std::unordered_map<Hex, Cell*, hash_Hex> m_map;
 
-	// fix a crash where an iterator was overflowing because items were deleted mid iteration by scheduling removal for after the iterator has finished.
+	//TODO localise zones into clusters, then replace with a cluster list.
+
+	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
+	std::unordered_map<Hex, Cluster*, hash_Hex> m_map;
+
+	// fixed a crash for: iterator overflowing, by scheduling removal after the iterator has finished.
 	std::vector<qpair> m_removalQueue;
 	std::vector<qpair> m_additionQueue;
 	// directions stored as an index to allow for incrementation of a direction to change facing.
@@ -37,12 +39,6 @@ private:
 	SimplexNoise* m_simplexNoise;
 
 public:
-	// some conversion functions
-	static DirectX::XMVECTOR HexToVector(Hex coordinates);
-	static Hex Float4ToHex(DirectX::XMFLOAT4 coordinates);
-	static Hex VectorToHex(DirectX::XMVECTOR coordinates);
-	static DirectX::XMFLOAT4 LerpHex(Hex a, Hex b, float t);
-	
 	Hex GetDirection(int direction);
 	int GetDirection(Hex direction);
 	// constructor/destructor
@@ -71,5 +67,6 @@ public:
 	// update and render functions
 	void Update(float timetep, DirectX::XMVECTOR center, std::unordered_map < PointerKey, Cell*, PointerHash> &updatables);
 	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables);
+	SimplexNoise* simplexNoise();
 };
 #endif
