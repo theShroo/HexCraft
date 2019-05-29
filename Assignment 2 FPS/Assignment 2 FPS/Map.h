@@ -23,6 +23,10 @@ private:
 	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
 	std::unordered_map<Hex, Cluster*, hash_Hex> m_map;
 
+	//update and render lists
+	std::unordered_map<PointerKey, Cluster*, PointerHash> m_clusterRenderables;
+	std::unordered_map<PointerKey, Cluster*, PointerHash> m_clusterUpdatables;
+
 	// fixed a crash for: iterator overflowing, by scheduling removal after the iterator has finished.
 	std::vector<qpair> m_removalQueue;
 	std::vector<qpair> m_additionQueue;
@@ -32,7 +36,6 @@ private:
 	std::default_random_engine m_generator;
 	std::uniform_int_distribution<int> m_spawnchance;
 	// function to check if a cell needs to be rendered (ie has exposed faces)
-	bool CheckRender(Cell* cell);
 	// a queue for cells to be passed to CheckRender (to avoid invalidating iterators).
 	std::vector<Cell*> m_renderCheckQueue;
 	// simplex noise for terrain generation;
@@ -47,6 +50,8 @@ public:
 	// accessors
 	Cell* GetCell(int x, int y, int height);
 	Cell* GetCell(Hex cell);
+	Cluster* GetCluster(Hex cluster);
+	void Initialise(Hex position, int distance);
 	void GetLocalMap(std::vector<Hex> &localMap, Hex center, int range);
 	void GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range);
 	void GetRing(std::vector<Hex> &HexList, Hex center, int radius);
@@ -57,16 +62,17 @@ public:
 	GameObject* AddAI(int type, Player* target, float range = 5);
 	GameObject* AddLoot(std::string name, std::string shader, std::string mesh, std::string texture, DirectX::XMVECTOR location, int qty);
 	// function to check the current update and render list for renderability and updatability.
-	void CleanZones(std::unordered_map < PointerKey, Cell*, PointerHash> &Updateables, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables, Hex center);
+	void CleanZones(Hex center);
 	// a function to add the planes in the direction of travel to the render and update lists.
-	void UpdateZones(std::unordered_map < PointerKey, Cell*, PointerHash> &Updateables, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables, Hex center, Hex direction, int updateDistance);
+	void UpdateZones(Hex center, Hex direction, int updateDistance);
 	// function to schedule a cell for a render check.
 	void RenderCheck(Cell* cell);  
+	std::unordered_map<PointerKey, Cluster*, PointerHash> GetRenderables();
 	// a function to increase the render and update distance.
-	void Map::IncrementZone(std::unordered_map < PointerKey, Cell*, PointerHash> &Updateables, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables, Hex center, int updateDistance);
+	void Map::IncrementZone(Hex center, int updateDistance);
 	// update and render functions
-	void Update(float timetep, DirectX::XMVECTOR center, std::unordered_map < PointerKey, Cell*, PointerHash> &updatables);
-	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam, std::unordered_map < PointerKey, Cell*, PointerHash> &renderables);
+	void Update(float timetep, DirectX::XMVECTOR center);
+	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam);
 	SimplexNoise* simplexNoise();
 };
 #endif

@@ -1,7 +1,10 @@
 IMPORTANT-READ FIRST:	 build and compile a realease version, the debug version lags horrendously. make sure the target platform is supported on your system, my IDE defaults to windows 10.1, yours may vary.
 						 if the build doesnt work for whatever reason then there is a prebuilt release version stored in the release folder. it ran on my macahine, so i hope it works on your windows version.
 
-Supermine! game. 
+	Thank you:	- RedBlobGames
+				- Sander Evers
+				
+Hexcraft game. 
 By Russell Chidambaranathan
 
 Version 0.1.11:
@@ -153,10 +156,16 @@ updated version to VS 2019, and modified the settings and dependancies to make i
 Version 0.2.1
 
 -Added Cluster class, and moved a lot of core map logic and code into the class
--fixed a bunch of errors in code to make it compile and runnning
+-fixed a bunch of errors in code to make it compile and run.
 	-performance has been negativly impacted at this stage, new logic requires additional calls, but will allow for other optimisations later down the line (current render distance is 24.)
 	
 -moved hex math logic into the hex class
 -revised class and header dependancies to allow the code to compile and run.
 -going to sleep now :/
+
+---------------------------------------------
+version 0.2.2
+
+- moved more logic to the cluster class, and started adding code to build precompiled update and render lists.
+
 	

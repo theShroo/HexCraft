@@ -1,3 +1,8 @@
+// wow, i remember making this state machine a long time ago and i'm suprised by its versatility and simplicity....
+
+// Author : Russell Harland.
+
+
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
 #include "MathsHelper.h"

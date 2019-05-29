@@ -33,6 +33,11 @@ public:
 	Hex GetLocation();
 	DirectX::XMVECTOR GetPosition() { return m_position; }
 	void SetHealth(int hp) { m_health = hp; }
+	void DisableUpdate();
+	void EnableUpdate();
+	void DisableRender();
+	void EnableRender();
+	bool CheckRender();
 
 private:
 	Cell** (Cell::*m_initialised)();

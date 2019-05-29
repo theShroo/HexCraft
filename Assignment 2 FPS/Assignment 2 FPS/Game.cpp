@@ -22,7 +22,7 @@ Game::Game()
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_inventoryIndex = 0;
 	// flags for dynamic render distance are set to default values.
-	m_activeDistance = 20;
+	m_activeDistance = 1;
 	m_updated = false;
 }
 
@@ -108,7 +108,7 @@ void Game::LoadUI()
 	// game active state
 	m_stateMachine->RegisterState(Active, 0, ActiveUpdateFunction(),
 		// game render lambda
-		[this]() { m_map->RenderLocal(m_player->GetPosition(), m_renderer, m_player->GetCamera(), m_renderables);
+		[this]() { m_map->RenderLocal(m_player->GetPosition(), m_renderer, m_player->GetCamera());
 			if (m_debug) {
 				m_debugOverlay->Render();
 		}
@@ -247,15 +247,9 @@ void Game::InitGameWorld()
 	m_map->AddObject(m_player);
 	m_currentPosition = Hex{ 0,0,0,0 };
 
-	std::vector<Hex> zone;
-	m_map->GetLocalMap(zone, m_currentPosition, m_activeDistance);
-	for (int i = 0; i < zone.size(); i++) {
-		Cell* cell = m_map->GetCell(zone[i]);
-		m_updatables[*cell] = cell;
-		m_renderables[*cell] = cell;
-	}
-	m_map->Update(0, m_player->GetPosition(), m_updatables);
-	m_map->CleanZones(m_updatables, m_renderables, m_player->GetLocation()->GetLocation());
+	m_map->Initialise(m_currentPosition, m_activeDistance);
+
+	m_map->Update(0, m_player->GetPosition());
 
 }
 void Game::Update(float timestep)
@@ -296,9 +290,9 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		int hp = m_player->GetHealth();
 		// dynamic zone incrementation to increment the zone as long as fps exceeds 60fps.
 		if (m_updated && timestep < 0.00833) {
-			m_map->IncrementZone(m_updatables, m_renderables, m_currentPosition, m_activeDistance);
 			m_activeDistance++;
-			m_map->IncrementZone(m_updatables, m_renderables, m_currentPosition, m_activeDistance);
+			m_map->IncrementZone(m_currentPosition, m_activeDistance);
+			
 		}
 		// dynamic zone decrementation if the performance falls below 30fps
 		if (timestep > 0.1666) {
@@ -306,7 +300,7 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		}
 		// zone update to update renderables and updateables as the player moves around
 		if (m_player->GetLocation()->GetLocation() != m_currentPosition) {
-			m_map->UpdateZones(m_updatables, m_renderables, m_player->GetLocation()->GetLocation(), m_player->GetLocation()->GetLocation()- m_currentPosition, m_activeDistance);
+			m_map->UpdateZones(m_player->GetLocation()->GetLocation(), m_player->GetLocation()->GetLocation()- m_currentPosition, m_activeDistance);
 			m_currentPosition = m_player->GetLocation()->GetLocation();
 			m_updated = true;
 		}
@@ -322,7 +316,7 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 			m_stateMachine->ChangeState(Paused);
 		}
 		// perform the actual map update
-		m_map->Update(timestep, m_player->GetPosition(), m_updatables);
+		m_map->Update(timestep, m_player->GetPosition());
 		// check players health for the hurt overlay
 		hp -= m_player->GetHealth();
 		health.right = health.left + m_player->GetHealth();

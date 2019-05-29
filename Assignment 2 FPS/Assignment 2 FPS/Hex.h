@@ -97,7 +97,7 @@ struct Hex {
 
 	static Hex smalltobig(Hex smallHex, int radius) {
 		int x = smallHex.x, y = smallHex.y, z = smallHex.z;
-		float area = (3 * pow(radius, 2)) + (3 * radius) + 1;
+		float area = (3 * pow(radius, 2)) + (3 * float(radius)) + 1;
 		float shift = (3 * radius) + 2;
 		float xh = (y + shift * x) / area;
 		float yh = (z + shift * y) / area;

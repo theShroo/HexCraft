@@ -105,3 +105,38 @@ Cell** Cell::_GetNeigboursInit() {
 	Initialise();
 	return m_neighbours;
 }
+
+void Cell::DisableUpdate() {
+	m_cluster->DisableUpdate(this);
+}
+
+void Cell::EnableUpdate() {
+	m_cluster->EnableUpdate(this);
+}
+
+
+void Cell::DisableRender() {
+	m_cluster->DisableRender(this);
+}
+
+void Cell::EnableRender() {
+	m_cluster->EnableRender(this);
+}
+
+
+bool Cell::CheckRender() {
+	bool renderable = false;
+	if (GetEntities()->size() > 0) {
+		renderable = true;
+	}
+	// this brute force render check replaces the math heavy version that only checks the cells on the visible faces,
+	// the result is that cells that have no faces visible to the player are still rendered, BUT this is still twice as efficient compared to the other version.
+	if (!renderable && IsSolid()) {
+		for (int i = 0; i < 20 && !renderable; i++) {
+			if (!GetNeigbours()[i]->IsSolid()) {
+				renderable = true;
+			}
+		}
+	}
+	return renderable;
+}

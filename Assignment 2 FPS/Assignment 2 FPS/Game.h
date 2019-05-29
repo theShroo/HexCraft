@@ -63,8 +63,6 @@ private:
 	std::wstring m_hexstring;
 	// performance optimisation data for performance update 1.
 	Hex m_currentPosition;
-	std::unordered_map<PointerKey, Cell*, PointerHash> m_renderables;
-	std::unordered_map<PointerKey, Cell*, PointerHash> m_updatables;
 	std::function<void(float a)> Game::ActiveUpdateFunction();
 	unsigned m_activeDistance;
 	bool m_updated;
