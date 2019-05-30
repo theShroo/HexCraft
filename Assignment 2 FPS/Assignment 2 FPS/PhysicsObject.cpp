@@ -1,5 +1,7 @@
 #include "PhysicsObject.h"
 #include "Map.h"
+#include "Cell.h"
+
 
 using namespace DirectX;
 

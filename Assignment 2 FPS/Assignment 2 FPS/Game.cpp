@@ -7,7 +7,7 @@
 #include "Game.h"
 #include "Bullets.h"
 #include "AIPlayer.h"
-
+#include "Cell.h"
 
 using namespace DirectX;
 
@@ -300,7 +300,11 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		}
 		// zone update to update renderables and updateables as the player moves around
 		if (m_player->GetLocation()->GetLocation() != m_currentPosition) {
-			m_map->UpdateZones(m_player->GetLocation()->GetLocation(), m_player->GetLocation()->GetLocation()- m_currentPosition, m_activeDistance);
+			Cluster* oldcluster = m_map->GetCell(m_currentPosition)->GetCluster();
+			Cluster* newcluster = m_player->GetLocation()->GetCluster();
+			if (oldcluster != newcluster) {
+				m_map->UpdateZones(m_player->GetLocation()->GetCluster()->GetLocation(), m_player->GetLocation()->GetCluster()->GetLocation() - m_currentPosition, m_activeDistance);
+			}
 			m_currentPosition = m_player->GetLocation()->GetLocation();
 			m_updated = true;
 		}

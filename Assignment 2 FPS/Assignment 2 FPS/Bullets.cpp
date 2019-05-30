@@ -1,6 +1,7 @@
 #include "Bullets.h"
 #include "Collisions.h"
 #include "Map.h"
+#include "Cell.h"
 
 // all bullets need access to the current map so that they can destroy themselves properly.
 using namespace DirectX;

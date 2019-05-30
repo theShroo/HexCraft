@@ -5,7 +5,6 @@
 #include "FPSPlayer.h"
 #include "Cell.h"
 
-constexpr int CLUSTERSIZE = 15;
 
 using namespace DirectX;
 
@@ -49,12 +48,8 @@ std::unordered_map<Hex, Cluster*, hash_Hex>::iterator terminator;
 
 Cell* Map::GetCell(Hex cell) {
 	// for the target cell we need to locate its cluster 
-	Hex clusterLoc = Hex::smalltobig(cell, CLUSTERSIZE);
-	if (m_map.count(clusterLoc) < 1) {
-		m_map[clusterLoc] = new Cluster(clusterLoc, this);
-	}
-	
-	return m_map[clusterLoc]->GetCell(cell);
+	Hex clusterLoc = Hex::smalltobig(cell, m_clusterSize);
+	return GetCluster(clusterLoc)->GetCell(cell);
 }
 
 // cluster fetch function
@@ -62,6 +57,7 @@ Cluster* Map::GetCluster(Hex cluster)
 {
 	if (m_map.count(cluster) < 1) {
 		m_map[cluster] = new Cluster(cluster, this);
+		m_map[cluster]->Initialise(m_clusterSize);
 	}
 	return m_map[cluster];
 }
@@ -72,8 +68,8 @@ void Map::Initialise(Hex position, int distance)
 	GetLocalMap(zone, position, distance);
 	for (int i = 0; i < zone.size(); i++) {
 		Cluster* cluster = GetCluster(zone[i]);
-		m_clusterUpdatables[*cluster] = cluster;
-		m_clusterRenderables[*cluster] = cluster;
+		m_ActiveClusters[*cluster] = cluster;
+		cluster->Initialise(m_clusterSize);
 	}
 }
 
@@ -119,10 +115,10 @@ void Map::Update(float timestep, XMVECTOR center) {
 
 	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A, iter_B; // special iterator to iterate through an entity list
 	std::unordered_map<PointerKey, Cluster*, PointerHash>::iterator Cluster_Update_iter;   // Cluster iterator 
-	for (Cluster_Update_iter = m_clusterUpdatables.begin(); Cluster_Update_iter != m_clusterUpdatables.end(); Cluster_Update_iter++) {	// for all Clusters in the update area
+	for (Cluster_Update_iter = m_ActiveClusters.begin(); Cluster_Update_iter != m_ActiveClusters.end(); Cluster_Update_iter++) {	// for all Clusters in the update area
 		Cluster* currentCluster = Cluster_Update_iter->second;
 		//	// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
-		currentCluster->Update(timestep, entitiesToUpdate, movedZone);
+		currentCluster->Update(timestep, entitiesToUpdate, movedZone, center);
 
 	}
 	
@@ -188,7 +184,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetEntities();
 		entitylist->erase(m_removalQueue[i].first->operator PointerKey());
 		delete m_removalQueue[i].first;
-		if (cell->GetEntities()->size() == 0) {
+		if (cell->GetEntities()->size() < 1) {
 			cell->DisableUpdate();
 		}
 
@@ -205,7 +201,7 @@ void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam) {
 	for (int i = 0; i < m_renderCheckQueue.size(); i++) {
 		Cell* cell = m_renderCheckQueue[i];
 		if (cell) {
-			if (CheckRender(cell)) {
+			if (cell->CheckRender()) {
 				cell->EnableRender();
 			}
 			else {
@@ -214,7 +210,7 @@ void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam) {
 		}
 	}
 	m_renderCheckQueue.clear();
-	for (auto i = m_clusterRenderables.begin(); i != m_clusterRenderables.end(); i++) {
+	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
 		i->second->Render(renderer, cam);
 	}
 }
@@ -320,7 +316,7 @@ void Map::RenderCheck(Cell* cell) {
 
 void Map::CleanZones(Hex center) {
 	// if a cell has no entities, dont update it.
-	for (auto i = m_clusterUpdatables.begin(); i != m_clusterUpdatables.end(); i++) {
+	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
 		i->second->Clean(center);
 	}
 }
@@ -330,19 +326,14 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 	// check if we are moving up or down, this is important as the second condition only calculates for lateral traversal
 	if (h_direction.w != 0) {
 		std::vector<Hex> plane;
-		Cell* cell;
+		Cluster* cluster;
 		GetLocalMap2D(plane, center + (Hex{0,0,0,h_direction.w}* updateDistance), updateDistance);
 		for (int i = 0; i < plane.size(); i++) {
-			cell = GetCell(plane[i]);
-			if (cell->GetEntities()->size() > 0) {
-				cell->EnableUpdate();
-			}
-			if (cell->CheckRender()) {
-				cell->EnableRender();
-			}
+			cluster = GetCluster(plane[i]);
+			m_ActiveClusters[*cluster] = cluster;
 		}
 		plane.clear();
-		h_direction.w = 0;				// if h_direction is also a direction we need to test for that.
+		h_direction.w = 0;				// if h_direction is also a planar direction we need to test for that.
 	}
 	int i_direction = GetDirection(h_direction);
 	if (i_direction >= 0) {
@@ -357,32 +348,21 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 		// do updateables and render checks at the same time for the leading planes, check for both update requirement and render requirement.
 
 		// leading planes * 2
-		Cell* cell;
+		Cluster* cluster;
 		Hex leading = center + (h_direction * updateDistance);
 		for (int i = -updateDistance; i <= updateDistance; i++) {
 			Hex currentl = Hex{ 0,0,0,i } +leading;
 			for (int j = 0; j <= updateDistance; j++) {
-				cell = GetCell(currentl + h_leadingdirection1 * j);		// leading plane 1
-				if (cell->GetEntities()->size() > 0) {
-					cell->EnableUpdate();
-				}
-				if (cell->CheckRender()) {
-					cell->EnableRender();
-				}
-				cell = GetCell(currentl + h_leadingdirection2 * j);		// leading plane 2
-				if (cell->GetEntities()->size() > 0) {
-					cell->EnableUpdate();
-				}
-				if (cell->CheckRender()) {
-					cell->EnableRender();
-				}
+				cluster = GetCluster(currentl + h_leadingdirection1 * j);		// leading plane 1
+				m_ActiveClusters[*cluster] = cluster;
+				cluster = GetCluster(currentl + h_leadingdirection2 * j);		// leading plane 2
 			}
 		}
 	}
-	// clear out updateables that are out of range
+	// clear out Active clusters that are out of range
 	std::vector<Cluster*> outsideDistance;
 	//check the distance from the center to each updateable to determine if its out of range (this is faster than checking an entire plane)
-	for (auto i = m_clusterUpdatables.begin(); i != m_clusterUpdatables.end(); i++) {
+	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
 		if (i->second->GetLocation().distance(center) > updateDistance) {
 			outsideDistance.push_back(i->second);
 		}
@@ -391,21 +371,7 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 		}
 	}
 	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
-		m_clusterUpdatables.erase(*outsideDistance[i]);
-	}
-	outsideDistance.clear();
-
-	// clear out renderables that have fallen out of range.
-	for (auto i = m_clusterRenderables.begin(); i != m_clusterRenderables.end(); i++) {
-		if (i->second->GetLocation().distance(center) > updateDistance + 5) {
-			outsideDistance.push_back(i->second);
-		}
-		else if (i->second->GetLocation().w > updateDistance + 5) {
-			outsideDistance.push_back(i->second);
-		}
-	}
-	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
-		m_clusterRenderables.erase(*outsideDistance[i]);
+		m_ActiveClusters.erase(*outsideDistance[i]);
 	}
 	outsideDistance.clear();
 }
@@ -414,37 +380,22 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 void Map::IncrementZone(Hex center, int updateDistance) {
 	std::vector<Hex> ring;
 	std::vector<Hex> plane;
-	Cell* cell;
+	Cluster* cluster;
 	for (int i = 0; i < updateDistance; i++) {
 		GetRing(plane, center, i);
 	}
 	GetRing(ring, center, updateDistance);
 	for (int i = 0; i < ring.size(); i++) {
 		for (int j = -updateDistance; j <= updateDistance; j++) {
-			cell = GetCell(Hex{ 0,0,0,j } +ring[i]);
-			if (cell->GetEntities()->size() > 0) {
-				Updateables[*cell] = cell;
-			}
-			if (CheckRender(cell)) {
-				renderables[*cell] = cell;
-			}
+			cluster = GetCluster(Hex{ 0,0,0,j } +ring[i]);
+			m_ActiveClusters[*cluster] = cluster;
 		}
 	}
 
 	for (int i = 0; i < plane.size(); i++) {
-		cell = GetCell(Hex{ 0,0,0, updateDistance} +plane[i]);
-		if (cell->GetEntities()->size() > 0) {
-			Updateables[*cell] = cell;
-		}
-		if (CheckRender(cell)) {
-			renderables[*cell] = cell;
-		}
-		cell = GetCell(Hex{ 0,0,0, -updateDistance } +plane[i]);
-		if (cell->GetEntities()->size() > 0) {
-			Updateables[*cell] = cell;
-		}
-		if (CheckRender(cell)) {
-			renderables[*cell] = cell;
-		}
+		cluster = GetCluster(Hex{ 0,0,0, updateDistance} +plane[i]);
+		m_ActiveClusters[*cluster] = cluster;
+		cluster = GetCluster(Hex{ 0,0,0, -updateDistance } +plane[i]);
+		m_ActiveClusters[*cluster] = cluster;
 	}
 }

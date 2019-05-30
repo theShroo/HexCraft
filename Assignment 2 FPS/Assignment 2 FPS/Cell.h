@@ -31,6 +31,7 @@ public:
 	// to improve performance the list of updateables and renderables needs to identify items by their pointers.
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }
 	Hex GetLocation();
+	Cluster* GetCluster() { return m_cluster; }
 	DirectX::XMVECTOR GetPosition() { return m_position; }
 	void SetHealth(int hp) { m_health = hp; }
 	void DisableUpdate();

@@ -1,6 +1,5 @@
 #pragma once
 #include "Hex.h"
-#include "Cell.h"
 
 class Cell;
 class Map;
@@ -22,16 +21,18 @@ public:
 
 	Cluster(Hex location, Map* Owner);
 	~Cluster();
+
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }
 
 	Cell* GetCell(Hex cell);
 	Map* GetOwner();
-	void Update(float timestep, std::vector<GameObject*> &movedZone, std::vector<GameObject*> &entitiesToUpdate);
+	void Update(float timestep, std::vector<GameObject*> &movedZone, std::vector<GameObject*> &entitiesToUpdate, XMVECTOR center);
 	void DisableUpdate(Cell* cell);
 	void EnableUpdate(Cell* cell);
 	void DisableRender(Cell* cell);
 	void EnableRender(Cell* cell);
 	void Render(Direct3D* renderer, Camera* cam);
 	void Clean(Hex center);
+	void Initialise(int clustersize);
 	Hex GetLocation() { return m_location; };
 };

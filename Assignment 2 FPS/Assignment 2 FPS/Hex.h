@@ -97,7 +97,7 @@ struct Hex {
 
 	static Hex smalltobig(Hex smallHex, int radius) {
 		int x = smallHex.x, y = smallHex.y, z = smallHex.z;
-		float area = (3 * pow(radius, 2)) + (3 * float(radius)) + 1;
+		double area = (3 * pow(radius, 2)) + (3 * radius) + 1;
 		float shift = (3 * radius) + 2;
 		float xh = (y + shift * x) / area;
 		float yh = (z + shift * y) / area;
@@ -109,6 +109,15 @@ struct Hex {
 		return Hex{ i, j, k, l };
 	}
 
+	// testing phase, single test case okay!
+	static Hex bigtosmall(Hex BigHex, int radius) {
+		int x = BigHex.x, y = BigHex.y, z = BigHex.z;
+		int i = (x*((radius*2) +1))+ (y*radius);
+		int j = (y*(radius+1)) - (x*radius);
+		int k = -i - j;
+		int l = BigHex.w * 15;
+		return Hex{ i, j, k, l };
+	}
 };
 
 // this function takes Hex data as an xmfloat4 and rounds it to the nearest hex.

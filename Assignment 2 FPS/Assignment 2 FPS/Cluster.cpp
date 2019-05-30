@@ -1,5 +1,10 @@
 #include "Cluster.h"
 #include "Map.h"
+#include "Loot.h"
+#include "Bullets.h"
+#include "AIPlayer.h"
+#include "FPSPlayer.h"
+#include "Cell.h"
 
 
 Cluster::Cluster(Hex location, Map* Owner)
@@ -43,12 +48,12 @@ Map* Cluster::GetOwner()
 	return m_owner;
 }
 
-void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::vector<GameObject*>& entitiesToUpdate)
+void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
 {
 	std::unordered_map<PointerKey, Cell*, PointerHash>::iterator Update_iter;   // CELL iterator
 	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A, iter_B; // special iterator to iterate through an entity list
 
-	for (Update_iter = m_cluster.begin(); Update_iter != m_cellUpdatables.end(); Update_iter++) {	// for all cells in the Cluster
+	for (Update_iter = m_cellUpdatables.begin(); Update_iter != m_cellUpdatables.end(); Update_iter++) {	// for all cells in the Cluster
 		Cell* currentCell = Update_iter->second;
 		// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
 		currentCell->Update(timestep);
@@ -67,12 +72,12 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 					if (active) {
 						Cell* cell = active->GetLocation();
 						if (!cell->IsPassable()) {
-							active->DoStanding(cell->GetLocation().w + 1.0f, this);
+							active->DoStanding(cell->GetLocation().w + 1.0f, m_owner);
 						}
 						cell = cell->GetNeigbours()[9];  // look up cell by index in neighbours list, its MUCH faster than any other method. (index 9 is below)
 						// new standing code, much more efficient than performing collisions on every hex in the zone.
 						if (!cell->IsPassable()) {
-							active->DoStanding(cell->GetLocation().w + 1.0f, this);
+							active->DoStanding(cell->GetLocation().w + 1.0f, m_owner);
 						}
 
 						for (int i = 0; i < 20; i++) {
@@ -85,7 +90,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 										if (interactive != active) {
 											if (Collisions::CheckCollision(active->GetBounds(), interactive->GetBounds())) {
 												// do normal colision here.
-												active->DoCollision(interactive, this);
+												active->DoCollision(interactive, m_owner);
 											}
 										}
 									}
@@ -109,7 +114,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 									Player* player = potential->GetPlayer();			// hits an active object
 									if (player) {
 										if (Collisions::CheckCollision(player->GetBounds(), loot->GetBounds())) {
-											loot->DoCollision(player, this);			// get the loot
+											loot->DoCollision(player, m_owner);			// get the loot
 											entity = 0;									// disable further interaction with the entity as it is scheduled for removal
 										}
 									}
@@ -124,7 +129,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 					if (bullet) {
 						Cell* location = bullet->GetLocation();
 						if (!location->IsPassable()) {
-							bullet->DoCollision(location, this);		// bullets remove themselves upon coillision.
+							bullet->DoCollision(location, m_owner);		// bullets remove themselves upon coillision.
 							entity = 0;
 						}
 						else {
@@ -140,7 +145,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 										if (interactive) {
 											if (Collisions::CheckCollision(bullet->GetBounds(), interactive->GetBounds())) {
 												if (bullet->m_leftGun) {						// make sure the bullet has actually left the gun it was fired from.
-													bullet->DoCollision(interactive, this);		// bullets remove themselves upon coillision.
+													bullet->DoCollision(interactive, m_owner);		// bullets remove themselves upon coillision.
 													entity = 0;
 													// impact code isnt working yet;
 													// new Impact(GetXMVECTOR3(hit), "Unlit Texture Shader", "Bullet", "Impact");	// we also have the hit Hex for placing an impact animation.
@@ -176,33 +181,37 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 
 
 void Cluster::DisableUpdate(Cell* cell) {
-	if (m_cellUpdatables.count(cell) > 0) {
+	if (m_cellUpdatables.count(*cell) > 0) {
 		m_cellUpdatables.erase(*cell);
 	}
 }
 
 void Cluster::EnableUpdate(Cell* cell) {
-	if (m_cellUpdatables.count(cell) == 0) {
+	if (m_cellUpdatables.count(*cell) == 0) {
 		m_cellUpdatables[*cell] = cell;
 	}
 }
 
 void Cluster::DisableRender(Cell* cell) {
-	if (m_cellRenderables.count(cell) > 0) {
+	if (m_cellRenderables.count(*cell) > 0) {
 		m_cellRenderables.erase(*cell);
 	}
 }
 
 void Cluster::EnableRender(Cell* cell) {
-	if (m_cellRenderables.count(cell) == 0) {
+	if (m_cellRenderables.count(*cell) == 0) {
 		m_cellRenderables[*cell] = cell;
 	}
 }
 
 
 void Cluster::Render(Direct3D* renderer, Camera* cam) {
-	for (auto i = m_clusterRenderables.begin(); i != m_clusterRenderables.end(); i++) {
-		i->second->Render(renderer, cam);
+	int x = 5;
+	
+	for (auto i = m_cellRenderables.begin(); i != m_cellRenderables.end(); i++) {
+		Cell* acell = i->second;
+		acell->Render(renderer, cam);
+
 	}
 
 }
@@ -223,13 +232,30 @@ void Cluster::Clean(Hex center) {
 	cleaned.clear();
 	// if a cell has no visible faces, dont render it.
 	for (auto i = m_cellRenderables.begin(); i != m_cellRenderables.end(); i++) {
-		if (!CheckRender(i->second)) {
+		if (!(i->second)->CheckRender()) {
 			cleaned.push_back(i->second);
 		}
 	}
 
 	for (int i = 0; i < cleaned.size(); i++) {
-		renderables.erase(*cleaned[i]);
+		m_cellRenderables.erase(*cleaned[i]);
 	}
 
+}
+
+
+void Cluster::Initialise(int clustersize) {
+	Hex location = Hex::bigtosmall(m_location, clustersize);
+	std::vector<Hex> plane;
+	Cell* cell;
+	for (int i = 0; i < clustersize; i++) {
+		m_owner->GetRing(plane, location, i);
+	}
+
+	for (int i = 0; i < plane.size(); i++) {
+		for (int j = -clustersize; j != clustersize; j++) {
+			GetCell(Hex{ 0,0,0, j } +plane[i])->EnableRender();
+		}
+	}
+	Clean(location);
 }
