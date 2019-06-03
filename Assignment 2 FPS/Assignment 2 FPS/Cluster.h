@@ -12,14 +12,15 @@ private:
 	std::unordered_map<PointerKey, Cell*, PointerHash> m_cellRenderables;
 	std::unordered_map<PointerKey, Cell*, PointerHash> m_cellUpdatables;
 
-
+	int m_clustersize;
 	Hex m_location = Hex{ 0,0,0,0 };
 	Map* m_owner = 0;
-
+	bool m_initialised = 0;
+	void _Initialise();
 
 public:
 
-	Cluster(Hex location, Map* Owner);
+	Cluster(Hex location, Map* Owner, int clustersize);
 	~Cluster();
 
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }
@@ -33,6 +34,5 @@ public:
 	void EnableRender(Cell* cell);
 	void Render(Direct3D* renderer, Camera* cam);
 	void Clean(Hex center);
-	void Initialise(int clustersize);
 	Hex GetLocation() { return m_location; };
 };

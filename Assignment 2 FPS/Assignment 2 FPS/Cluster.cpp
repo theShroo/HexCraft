@@ -7,11 +7,13 @@
 #include "Cell.h"
 
 
-Cluster::Cluster(Hex location, Map* Owner)
+Cluster::Cluster(Hex location, Map* Owner, int clustersize)
 {
 	m_location = location;
 	m_owner = Owner;
+	m_clustersize = clustersize;
 }
+
 
 Cluster::~Cluster()
 {
@@ -50,6 +52,10 @@ Map* Cluster::GetOwner()
 
 void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
 {
+	if (!m_initialised) {
+		m_initialised = 1;
+		_Initialise();
+	}
 	std::unordered_map<PointerKey, Cell*, PointerHash>::iterator Update_iter;   // CELL iterator
 	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A, iter_B; // special iterator to iterate through an entity list
 
@@ -60,117 +66,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 		std::unordered_map<PointerKey, GameObject*, PointerHash>* entities = currentCell->GetEntities();		// get all game objects.
 		if (entities->size() > 0) {
 			for (iter_A = entities->begin(); iter_A != entities->end(); iter_A++) {
-				// lets optimise this code by running the update checks here for collisions and whatnot, then after all colisions have been done update the 
-				// entities based on the results of this part of the update loop by pushing them back into a vector of objects to be updated.
 				GameObject* entity = iter_A->second;
-				Cell** neigbours = currentCell->GetNeigbours(); // we need all the neigbour cells for this part of the update cycle, so we store a static list of neigbours
-																// in the cell to reduce lookup time.
-
-				// do colisions for interactive objects
-				if (entity) {
-					PhysicsObject* active = entity->GetInteractive();
-					if (active) {
-						Cell* cell = active->GetLocation();
-						if (!cell->IsPassable()) {
-							active->DoStanding(cell->GetLocation().w + 1.0f, m_owner);
-						}
-						cell = cell->GetNeigbours()[9];  // look up cell by index in neighbours list, its MUCH faster than any other method. (index 9 is below)
-						// new standing code, much more efficient than performing collisions on every hex in the zone.
-						if (!cell->IsPassable()) {
-							active->DoStanding(cell->GetLocation().w + 1.0f, m_owner);
-						}
-
-						for (int i = 0; i < 20; i++) {
-							std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neigbours[i]->GetEntities();
-							if (potentials->size() > 0) {
-								for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
-									GameObject* potential = iter_B->second;
-									PhysicsObject* interactive = potential->GetInteractive();			// if interactive then collide
-									if (interactive) {
-										if (interactive != active) {
-											if (Collisions::CheckCollision(active->GetBounds(), interactive->GetBounds())) {
-												// do normal colision here.
-												active->DoCollision(interactive, m_owner);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-
-				if (entity) {
-					Loot* loot = entity->GetLoot();							// if loot
-					if (loot) {
-						XMVECTOR target = center;
-						target.m128_f32[1] += 1.0f;
-						loot->ApplyForce(DirectX::XMVector3Normalize(target - loot->GetPosition()) * timestep * 0.05f);
-						for (int i = 0; i < 20; i++) {
-							std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neigbours[i]->GetEntities();
-							if (potentials->size() > 0) {
-								for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
-									GameObject* potential = iter_B->second;
-									Player* player = potential->GetPlayer();			// hits an active object
-									if (player) {
-										if (Collisions::CheckCollision(player->GetBounds(), loot->GetBounds())) {
-											loot->DoCollision(player, m_owner);			// get the loot
-											entity = 0;									// disable further interaction with the entity as it is scheduled for removal
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				// test if this is a bullet.
-				if (entity) {
-					Bullets* bullet = entity->GetBullet();
-					if (bullet) {
-						Cell* location = bullet->GetLocation();
-						if (!location->IsPassable()) {
-							bullet->DoCollision(location, m_owner);		// bullets remove themselves upon coillision.
-							entity = 0;
-						}
-						else {
-
-							bool ingun = false;
-
-							for (int i = 0; entity && i < 20; i++) {
-								std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neigbours[i]->GetEntities();
-								if (potentials->size() > 0) {
-									for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
-										GameObject* potential = iter_B->second;
-										PhysicsObject* interactive = potential->GetInteractive();
-										if (interactive) {
-											if (Collisions::CheckCollision(bullet->GetBounds(), interactive->GetBounds())) {
-												if (bullet->m_leftGun) {						// make sure the bullet has actually left the gun it was fired from.
-													bullet->DoCollision(interactive, m_owner);		// bullets remove themselves upon coillision.
-													entity = 0;
-													// impact code isnt working yet;
-													// new Impact(GetXMVECTOR3(hit), "Unlit Texture Shader", "Bullet", "Impact");	// we also have the hit Hex for placing an impact animation.
-												}
-												else if (!ingun) {
-													ingun = true;
-												}
-											}
-										}
-									}
-								}
-							}
-							if (entity) {
-								if (bullet->m_ttl < 0) {								// if the bullet has expired and it hasnt hit anything.
-									m_owner->RemoveObject(bullet);
-									entity = 0;
-								}
-								else if (!ingun) {
-									bullet->m_leftGun = true;
-								}
-							}
-						}
-					}
-				}
-				// if it still needs to be updated push it back into a vector to be updated. this stops objects moving before other things can collide with them.
 				if (entity) {
 					entitiesToUpdate.push_back(iter_A->second);
 				}
@@ -206,14 +102,9 @@ void Cluster::EnableRender(Cell* cell) {
 
 
 void Cluster::Render(Direct3D* renderer, Camera* cam) {
-	int x = 5;
-	
 	for (auto i = m_cellRenderables.begin(); i != m_cellRenderables.end(); i++) {
-		Cell* acell = i->second;
-		acell->Render(renderer, cam);
-
+		i->second->Render(renderer, cam);
 	}
-
 }
 
 
@@ -243,19 +134,19 @@ void Cluster::Clean(Hex center) {
 
 }
 
-
-void Cluster::Initialise(int clustersize) {
-	Hex location = Hex::bigtosmall(m_location, clustersize);
+void Cluster::_Initialise() {
+	Hex location = Hex::bigtosmall(m_location, m_clustersize);
 	std::vector<Hex> plane;
 	Cell* cell;
-	for (int i = 0; i < clustersize; i++) {
+	for (int i = 0; i <= m_clustersize; i++) {
 		m_owner->GetRing(plane, location, i);
 	}
 
 	for (int i = 0; i < plane.size(); i++) {
-		for (int j = -clustersize; j != clustersize; j++) {
+		for (int j = -m_clustersize; j <= m_clustersize; j++) {
 			GetCell(Hex{ 0,0,0, j } +plane[i])->EnableRender();
 		}
 	}
 	Clean(location);
+
 }

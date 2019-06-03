@@ -250,7 +250,6 @@ void Game::InitGameWorld()
 	m_map->Initialise(m_currentPosition, m_activeDistance);
 
 	m_map->Update(0, m_player->GetPosition());
-
 }
 void Game::Update(float timestep)
 {
@@ -288,22 +287,27 @@ void Game::Shutdown()
 std::function<void(float a)> Game::ActiveUpdateFunction() {
 	return [this](float timestep) {
 		int hp = m_player->GetHealth();
+		m_player->Update(timestep);
 		// dynamic zone incrementation to increment the zone as long as fps exceeds 60fps.
 		if (m_updated && timestep < 0.00833) {
-			m_activeDistance++;
-			m_map->IncrementZone(m_currentPosition, m_activeDistance);
+			
+			if (!m_map->IncrementZone(m_currentPosition, m_activeDistance)) {
+				m_activeDistance++;
+			}
 			
 		}
 		// dynamic zone decrementation if the performance falls below 30fps
 		if (timestep > 0.1666) {
-			m_activeDistance--;
+			if (m_activeDistance > 2) {
+				m_activeDistance--;
+			}
 		}
 		// zone update to update renderables and updateables as the player moves around
 		if (m_player->GetLocation()->GetLocation() != m_currentPosition) {
-			Cluster* oldcluster = m_map->GetCell(m_currentPosition)->GetCluster();
-			Cluster* newcluster = m_player->GetLocation()->GetCluster();
+			Hex oldcluster = m_map->GetCell(m_currentPosition)->GetCluster()->GetLocation();
+			Hex newcluster = m_player->GetLocation()->GetCluster()->GetLocation();
 			if (oldcluster != newcluster) {
-				m_map->UpdateZones(m_player->GetLocation()->GetCluster()->GetLocation(), m_player->GetLocation()->GetCluster()->GetLocation() - m_currentPosition, m_activeDistance);
+				m_map->UpdateZones(newcluster, newcluster - oldcluster, m_activeDistance);
 			}
 			m_currentPosition = m_player->GetLocation()->GetLocation();
 			m_updated = true;

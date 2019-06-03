@@ -23,7 +23,7 @@ private:
 	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
 	std::unordered_map<Hex, Cluster*, hash_Hex> m_map;
 	// set an arbitrary cluster size
-	int m_clusterSize = 6;
+	int m_clusterSize = 7;
 	//update and render lists
 	std::unordered_map<PointerKey, Cluster*, PointerHash> m_ActiveClusters;
 
@@ -68,7 +68,7 @@ public:
 	// function to schedule a cell for a render check.
 	void RenderCheck(Cell* cell);  
 	// a function to increase the render and update distance.
-	void Map::IncrementZone(Hex center, int updateDistance);
+	bool Map::IncrementZone(Hex center, int updateDistance);
 	// update and render functions
 	void Update(float timetep, DirectX::XMVECTOR center);
 	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam);
