@@ -38,7 +38,7 @@ Cell* Cluster::GetCell(Hex cell) {
 				newCell->SetHealth(15);
 			}
 			else {
-				m_cluster[cell]->SetType("Dirt", 0, 1);
+				newCell->SetType("Dirt", 0, 1);
 			}
 		}
 	}
@@ -57,7 +57,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 		_Initialise();
 	}
 	std::unordered_map<PointerKey, Cell*, PointerHash>::iterator Update_iter;   // CELL iterator
-	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A, iter_B; // special iterator to iterate through an entity list
+	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A; // special iterator to iterate through an entity list
 
 	for (Update_iter = m_cellUpdatables.begin(); Update_iter != m_cellUpdatables.end(); Update_iter++) {	// for all cells in the Cluster
 		Cell* currentCell = Update_iter->second;
@@ -68,7 +68,7 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 			for (iter_A = entities->begin(); iter_A != entities->end(); iter_A++) {
 				GameObject* entity = iter_A->second;
 				if (entity) {
-					entitiesToUpdate.push_back(iter_A->second);
+					entitiesToUpdate.push_back(entity);
 				}
 			}
 		}
@@ -111,27 +111,20 @@ void Cluster::Render(Direct3D* renderer, Camera* cam) {
 void Cluster::Clean(Hex center) {
 	std::vector<Cell*> cleaned;
 	// if a cell has no entities, dont update it.
-	for (auto i = m_cellUpdatables.begin(); i != m_cellUpdatables.end(); i++) {
-		if (i->second->GetEntities()->size() == 0) {
-			cleaned.push_back(i->second);
+	for (auto i = m_cluster.begin(); i != m_cluster.end(); i++) {
+		if (i->second->GetEntities()->size() > 0) {
+			EnableUpdate(i->second);
 		}
-	}
-	// perform the removal after the iterator has finished to prevent invalidating the iterator.
-	for (int i = 0; i < cleaned.size(); i++) {
-		m_cellUpdatables.erase(*cleaned[i]);
-	}
-	cleaned.clear();
-	// if a cell has no visible faces, dont render it.
-	for (auto i = m_cellRenderables.begin(); i != m_cellRenderables.end(); i++) {
-		if (!(i->second)->CheckRender()) {
-			cleaned.push_back(i->second);
+		else {
+			DisableUpdate(i->second);
 		}
+		if (i->second->CheckRender()) {
+			EnableRender(i->second);
+		}
+		else {
+			DisableRender(i->second);
+		};
 	}
-
-	for (int i = 0; i < cleaned.size(); i++) {
-		m_cellRenderables.erase(*cleaned[i]);
-	}
-
 }
 
 void Cluster::_Initialise() {

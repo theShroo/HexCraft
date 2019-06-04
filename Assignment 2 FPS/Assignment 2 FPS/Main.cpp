@@ -23,7 +23,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pScmdline,
 
 	//CreateConsole();
 
-	Window* win = new Window(L"FPS renderer", 1280, 720, false);	//We'll create our window object, set a size and if we want it fullscreen
+	Window* win = new Window(L"Hexcraft!", 1280, 720, false);	//We'll create our window object, set a size and if we want it fullscreen
 
 	if (win->Initialise())	//If the window initialises...
 	{

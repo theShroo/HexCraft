@@ -23,7 +23,11 @@ Game::Game()
 	m_inventoryIndex = 0;
 	// flags for dynamic render distance are set to default values.
 	m_activeDistance = 1;
+	m_clustersize = 10;
 	m_updated = false;
+	for (int i = 0; i < 4; i++) {
+		m_debugstrings.push_back(new std::wstring);
+	}
 }
 
 Game::~Game() {}
@@ -96,15 +100,17 @@ void Game::LoadUI()
 	// an extra spritemanager for debugging.
 	m_debugOverlay = new SpriteManager();
 
-	m_debugOverlay->MakeSpriteFont("Ariel 18", &m_positionstring, XMFLOAT2(20, 200), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
-	m_debugOverlay->MakeSpriteFont("Ariel 18", &m_hexstring, XMFLOAT2(20, 230), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[0], XMFLOAT2(20, 200), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[1], XMFLOAT2(20, 230), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[2], XMFLOAT2(20, 260), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[3], XMFLOAT2(20, 290), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 
 	// initialise the spriteManagers.
 	std::pair<int, int> size = m_input->GetWindowSize();
 	// main menu
 	m_stateMachine->RegisterState(MainMenu, 0, 0, 0, 0);
 	m_stateMachine->Spritemanager(MainMenu)->MakeButton(m_input, XMINT2(128, 64), Texture::GetTexture("Button"), "Click to Begin!", XMFLOAT2(size.first / 2, 200), "Ariel 12", [this] {m_stateMachine->ChangeState(Active); });
-	m_stateMachine->Spritemanager(MainMenu)->MakeSpriteFont("Ariel 23", L"SUPERMINE!", XMFLOAT2((size.first - 200) / 2, 100), XMFLOAT4(0.0f, 0.5f, 1.0f, 1.0f), 0, XMFLOAT2(1, 0));
+	m_stateMachine->Spritemanager(MainMenu)->MakeSpriteFont("Ariel 23", L"Hexcraft!", XMFLOAT2((size.first - 200) / 2, 100), XMFLOAT4(0.0f, 0.5f, 1.0f, 1.0f), 0, XMFLOAT2(1, 0));
 	// game active state
 	m_stateMachine->RegisterState(Active, 0, ActiveUpdateFunction(),
 		// game render lambda
@@ -219,9 +225,15 @@ void Game::RefreshUI()
 	ss << L"Render distance: " << m_score;
 	m_highScoreText = ss.str();
 
-	m_positionstring = m_player->GetPositionString();
+	*m_debugstrings[0] = m_player->GetPositionString();
 	Hex location = Hex::VectorToHex(m_player->GetPosition());
-	m_hexstring = L"X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	*m_debugstrings[1] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	location = Hex::smalltobig(location, m_clustersize);
+	*m_debugstrings[2] = L"Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	location = m_player->GetLocation()->GetCluster()->GetLocation();
+	*m_debugstrings[3] = L"actual cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+
+
 	if (m_input->GetKeyDown(VK_F3)) {
 		if (m_debug) {
 			m_debug = false;
@@ -236,7 +248,7 @@ void Game::RefreshUI()
 void Game::InitGameWorld()
 {
 	// create the map
-	m_map = new Map();
+	m_map = new Map(m_clustersize);
 
 	// bullets and equipment need initialising before all their functionality performs properly.
 	Bullets::Initialise(m_map);
@@ -287,7 +299,15 @@ void Game::Shutdown()
 std::function<void(float a)> Game::ActiveUpdateFunction() {
 	return [this](float timestep) {
 		int hp = m_player->GetHealth();
-		m_player->Update(timestep);
+
+
+		// quick hak to test/prevent the players cluster from falling out of the update cycle.
+		Cluster* current = m_player->GetLocation()->GetCluster();
+		m_map->GetActiveClusters()->operator[](*current) = current;
+		// TODO work out why there is a problem transfering the player from one cluster to another and maintaining the update process.
+		// for some reason when the player (and presumably any other entitiy) moves from one cluster to another the new sector is dropped from the update list.
+		// this is a critical problem.
+
 		// dynamic zone incrementation to increment the zone as long as fps exceeds 60fps.
 		if (m_updated && timestep < 0.00833) {
 			

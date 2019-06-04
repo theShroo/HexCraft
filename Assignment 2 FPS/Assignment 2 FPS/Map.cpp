@@ -10,7 +10,7 @@ using namespace DirectX;
 
 
 
-Map::Map() {
+Map::Map(int clustersize) {
 
 	// initialise the direction translator.
 	m_directions.push_back(Hex{ +1, -1, 0, 0 });
@@ -23,8 +23,7 @@ Map::Map() {
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_spawnchance = std::uniform_int_distribution<int> (1, 1000000);
 	m_simplexNoise = new SimplexNoise(0.003f, 200.0f);
-	// Initialise cluster logic.
-
+	m_clusterSize = clustersize;
 }
 
 
@@ -108,6 +107,8 @@ void Map::GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range) {
 // performs any spawn functions that are queued.
 
 void Map::Update(float timestep, XMVECTOR center) {
+
+
 	std::vector<GameObject*> movedZone;																// list of objects that have left their zone.
 	std::vector<GameObject*> entitiesToUpdate;
 
@@ -116,12 +117,15 @@ void Map::Update(float timestep, XMVECTOR center) {
 	for (Cluster_Update_iter = m_ActiveClusters.begin(); Cluster_Update_iter != m_ActiveClusters.end(); Cluster_Update_iter++) {	// for all Clusters in the update area
 		Cluster* currentCluster = Cluster_Update_iter->second;
 		//	// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
-		currentCluster->Update(timestep, entitiesToUpdate, movedZone, center);
+		currentCluster->Update(timestep,  movedZone, entitiesToUpdate, center);
 
 	}
+	// prep the entity iterator
 	for (int i = 0; i < entitiesToUpdate.size(); i++) {
-		// do colisions for interactive objects
 		GameObject* entity = entitiesToUpdate[i];
+		Cell** neighbours = entity->GetLocation()->GetNeigbours();
+
+		// do colisions for interactive objects
 		if (entity) {
 			PhysicsObject* active = entity->GetInteractive();
 			if (active) {
@@ -134,9 +138,9 @@ void Map::Update(float timestep, XMVECTOR center) {
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
 				}
-
+				//check for local collisions with other active entities
 				for (int i = 0; i < 20; i++) {
-					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = active->GetLocation()->GetNeigbours()[i]->GetEntities();
+					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
 					if (potentials->size() > 0) {
 						for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
 							GameObject* potential = iter_B->second;
@@ -162,9 +166,9 @@ void Map::Update(float timestep, XMVECTOR center) {
 				target.m128_f32[1] += 1.0f;
 				loot->ApplyForce(DirectX::XMVector3Normalize(target - loot->GetPosition()) * timestep * 0.05f);
 				for (int i = 0; i < 20; i++) {
-					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = loot->GetLocation()->GetNeigbours()[i]->GetEntities();
+					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
 					if (potentials->size() > 0) {
-						for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
+						for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 							GameObject* potential = iter_B->second;
 							Player* player = potential->GetPlayer();			// hits an active object
 							if (player) {
@@ -178,6 +182,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 				}
 			}
 		}
+
 		// test if this is a bullet.
 		if (entity) {
 			Bullets* bullet = entity->GetBullet();
@@ -192,7 +197,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 					bool ingun = false;
 
 					for (int i = 0; entity && i < 20; i++) {
-						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = entity->GetLocation()->GetNeigbours()[i]->GetEntities();
+						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
 						if (potentials->size() > 0) {
 							for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 								GameObject* potential = iter_B->second;
@@ -224,31 +229,33 @@ void Map::Update(float timestep, XMVECTOR center) {
 					}
 				}
 			}
+
 		}
-	}
-	// if it still needs to be updated push it back into a vector to be updated. this stops objects moving before other things can collide with them.
-// then update all entites that remain to accept an update.
-	for (int i = 0; i < entitiesToUpdate.size(); i++) {
-		GameObject* entity = entitiesToUpdate[i];
-		entity->Update(timestep);															// update them.
-		Hex newHex = Hex::VectorToHex(entity->GetPosition());
-		if (newHex != entity->GetLocation()->GetLocation()) {
-			if (entity->GetPlayer()) {
-				Cell* cell = GetCell(newHex);
-				if (cell->IsPassable() && cell->GetNeigbours()[10]->IsPassable()) {  // cell->neighbours()[10] is the Cell above cell.
-					movedZone.push_back(entity);
-				}
-				else if (cell->GetNeigbours()[10]->IsPassable() && cell->GetNeigbours()[10]->GetNeigbours()[10]->IsPassable()) { // nest neighbours 10 to get the cell two above the current. (still faster than hash table lookup)
-					entity->Move(MathsHelper::GetXMVECTOR3(0, 1, 0));
-					movedZone.push_back(entity);
+
+		// if it still needs to be updated push it back into a vector to be updated. this stops objects moving before other things can collide with them.
+		// then update all entites that remain to accept an update.
+
+		if (entity) {
+			entity->Update(timestep);															// update them.
+			Hex newHex = Hex::VectorToHex(entity->GetPosition());
+			if (newHex != entity->GetLocation()->GetLocation()) {
+				if (entity->GetPlayer()) {
+					Cell* cell = GetCell(newHex);
+					if (cell->IsPassable() && cell->GetNeigbours()[10]->IsPassable()) {  // cell->neighbours()[10] is the Cell above cell.
+						movedZone.push_back(entity);
+					}
+					else if (cell->GetNeigbours()[10]->IsPassable() && cell->GetNeigbours()[10]->GetNeigbours()[10]->IsPassable()) { // nest neighbours 10 to get the cell two above the current. (still faster than hash table lookup)
+						entity->Move(MathsHelper::GetXMVECTOR3(0, 1, 0));
+						movedZone.push_back(entity);
+					}
+					else {
+						XMVECTOR Hex = entity->GetLocation()->GetPosition();
+						entity->setPosition(Hex + XMVector3Normalize(entity->GetPosition() - Hex) * 0.65f);
+					}
 				}
 				else {
-					XMVECTOR Hex = entity->GetLocation()->GetPosition();
-					entity->setPosition(Hex + XMVector3Normalize(entity->GetPosition() - Hex)* 0.65f);
+					movedZone.push_back(entity);													// flag them for cell reHex.
 				}
-			}
-			else {
-				movedZone.push_back(entity);													// flag them for cell reHex.
 			}
 		}
 	}
@@ -267,6 +274,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		cell->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
 		entity->SetLocation(cell);													// update the objects location.							
 		cell->EnableUpdate();
+		//m_ActiveClusters[*(cell->GetCluster())] = cell->GetCluster();
 		m_renderCheckQueue.push_back(cell);
 		// add the objects new cell to the updateables list.
 	}		
@@ -279,6 +287,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		entitylist->operator[](m_additionQueue[i].first->operator PointerKey()) = m_additionQueue[i].first;		// add the object to its new cell.
 		cell->EnableUpdate();																				// to prevent errors we will update teh cell when it is added to the update list.
 		cell->Update(0); 
+		//m_ActiveClusters[*(cell->GetCluster())] = cell->GetCluster();
 		m_additionQueue[i].first->SetLocation(cell);
 	}
 	m_additionQueue.clear();
@@ -461,14 +470,15 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 				cluster = GetCluster(currentl + h_leadingdirection1 * j);		// leading plane 1
 				m_ActiveClusters[*cluster] = cluster;
 				cluster = GetCluster(currentl + h_leadingdirection2 * j);		// leading plane 2
+				m_ActiveClusters[*cluster] = cluster;
 			}
 		}
 	}
-	// clear out Active clusters that are out of range
+	// disable Active clusters that are out of range
 	std::vector<Cluster*> outsideDistance;
 	//check the distance from the center to each updateable to determine if its out of range (this is faster than checking an entire plane)
 	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
-		if (i->second->GetLocation().distance(center) > updateDistance) {
+		if (i->second->GetLocation().distance(center) > updateDistance + 1) {
 			outsideDistance.push_back(i->second);
 		}
 		else if (i->second->GetLocation().w > updateDistance) {
@@ -477,6 +487,23 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 	}
 	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
 		m_ActiveClusters.erase(*outsideDistance[i]);
+		m_map.erase(outsideDistance[i]->GetLocation());
+		delete outsideDistance[i];
+	}
+	outsideDistance.clear();
+
+	// delete clusters from the map that are even further out of range.
+	for (auto i = m_map.begin(); i != m_map.end(); i++) {
+		if (i->second->GetLocation().distance(center) > updateDistance + 3) {
+			outsideDistance.push_back(i->second);
+		}
+		else if (i->second->GetLocation().w > updateDistance) {
+			outsideDistance.push_back(i->second);
+		}
+	}
+	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
+		m_map.erase(outsideDistance[i]->GetLocation());
+		delete outsideDistance[i];
 	}
 	outsideDistance.clear();
 }
@@ -495,8 +522,8 @@ bool Map::IncrementZone(Hex center, int updateDistance) {
 		for (int j = -updateDistance; j <= updateDistance && incremented == false; j++) {
 			cluster = GetCluster(Hex{ 0,0,0,j } +ring[i]);
 			if (m_ActiveClusters.count(*cluster) == 0) {
-
 				m_ActiveClusters[*cluster] = cluster;
+				cluster->Clean(center);
 				incremented = true;
 			}
 		}
@@ -506,11 +533,13 @@ bool Map::IncrementZone(Hex center, int updateDistance) {
 		cluster = GetCluster(Hex{ 0,0,0, updateDistance } +plane[i]);
 		if (m_ActiveClusters.count(*cluster) == 0) {
 			m_ActiveClusters[*cluster] = cluster;
+			cluster->Clean(center);
 			incremented = true;
 		}
 		cluster = GetCluster(Hex{ 0,0,0, -updateDistance } +plane[i]);
 		if (m_ActiveClusters.count(*cluster) == 0) {
 			m_ActiveClusters[*cluster] = cluster;
+			cluster->Clean(center);
 			incremented = true;
 		}
 	}	

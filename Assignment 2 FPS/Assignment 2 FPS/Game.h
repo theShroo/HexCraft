@@ -59,13 +59,13 @@ private:
 	// debug stuff
 	bool m_debug;
 	SpriteManager* m_debugOverlay;
-	std::wstring m_positionstring;
-	std::wstring m_hexstring;
+	std::vector<std::wstring*> m_debugstrings;
 	// performance optimisation data for performance update 1.
 	Hex m_currentPosition;
 	std::function<void(float a)> Game::ActiveUpdateFunction();
 	unsigned m_activeDistance;
 	bool m_updated;
+	int m_clustersize;
 
 public:
 	Game();	

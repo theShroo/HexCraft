@@ -17,14 +17,14 @@ struct qpair {
 
 class Map {
 private:
+	int m_clusterSize = 7;
 
 	//TODO localise zones into clusters, then replace with a cluster list.
 
 	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
 	std::unordered_map<Hex, Cluster*, hash_Hex> m_map;
 	// set an arbitrary cluster size
-	int m_clusterSize = 7;
-	//update and render lists
+	//update and render list
 	std::unordered_map<PointerKey, Cluster*, PointerHash> m_ActiveClusters;
 
 	// fixed a crash for: iterator overflowing, by scheduling removal after the iterator has finished.
@@ -45,7 +45,7 @@ public:
 	Hex GetDirection(int direction);
 	int GetDirection(Hex direction);
 	// constructor/destructor
-	Map();
+	Map(int clustersize);
 	~Map();
 	// accessors
 	Cell* GetCell(int x, int y, int height);
@@ -72,6 +72,7 @@ public:
 	// update and render functions
 	void Update(float timetep, DirectX::XMVECTOR center);
 	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam);
-	SimplexNoise* simplexNoise();
+	std::unordered_map<PointerKey, Cluster*, PointerHash>* GetActiveClusters() { return &m_ActiveClusters; }
+		SimplexNoise* simplexNoise();
 };
 #endif
