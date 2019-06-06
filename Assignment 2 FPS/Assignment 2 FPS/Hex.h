@@ -74,6 +74,9 @@ struct Hex {
 		return Hex{ int(rx), int(ry), int(rz), int(round(coordinates.w)) };
 	}
 
+	
+	// this function takes Hex data as an xmfloat4 and rounds it to the nearest hex.
+
 	static Hex VectorToHex(XMVECTOR coordinates) {
 		// this conversion code gets a little messy, but without it the getlocal function (the most noticable of the functions that use this conversion)
 		// would all generate a positional bias as the distcance from 0 increases
@@ -95,32 +98,41 @@ struct Hex {
 		return result;
 	}
 
+	// a potentially unstable conversion from a small hex to its owner cluster
+	// this function was interpreted from a tutorial by sander evans and uses code that is highly implementation dependant
+	// the floor funtion may or may not return the same results as his version (despite using exactly the same logic) as
+	// both integer division of numbers below 0 and the floor function on numbers below 0 work in unpredictable ways.
+	// this will be the cause of many bugs until serious work is done to standardise the results.
+
+
 	static Hex smalltobig(Hex smallHex, int radius) {
 		int x = smallHex.x, y = smallHex.y, z = smallHex.z;
-		double area = (3 * pow(radius, 2)) + (3 * radius) + 1;
-		float shift = (3 * radius) + 2;
-		float xh = (y + shift * x) / area;
-		float yh = (z + shift * y) / area;
-		float zh = (x + shift * z) / area;
-		int i = (1 + xh - yh) / 3;
-		int j = (1 + yh - zh) / 3;
-		int k = (1 + zh - xh) / 3;
-		int l = smallHex.w / 15;
+		double area = (3 * radius*radius ) + (3 * radius) + 1;
+		double shift = (3 * radius) + 2;
+		double xh = floor ((y + (shift * x)) / area);
+		double yh = floor((z + (shift * y)) / area);
+		double zh = floor((x + (shift * z)) / area);
+		int i = floor((1 + xh - yh) / 3);
+		int j = floor((1 + yh - zh) / 3);
+		int k = floor((1 + zh - xh) / 3);
+		int l = floor (smallHex.w / radius);
 		return Hex{ i, j, k, l };
 	}
 
-	// testing phase, single test case okay!
+
+	// testing phase, single test case okay! (actually this function seems to be working very well), although it could be totally flawed
+	// as its use is entirely based on math i understand, but is being used as a compliment to math that i do not understand very well at all
+	// and any lack of syncronisation with the smalltobig function will result in massive problems.
 	static Hex bigtosmall(Hex BigHex, int radius) {
 		int x = BigHex.x, y = BigHex.y, z = BigHex.z;
 		int i = (x*((radius*2) +1))+ (y*radius);
 		int j = (y*(radius+1)) - (x*radius);
 		int k = -i - j;
-		int l = BigHex.w * 15;
+		int l = BigHex.w * radius;
 		return Hex{ i, j, k, l };
 	}
 };
 
-// this function takes Hex data as an xmfloat4 and rounds it to the nearest hex.
 
 
 

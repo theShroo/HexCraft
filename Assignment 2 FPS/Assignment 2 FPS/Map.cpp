@@ -274,7 +274,6 @@ void Map::Update(float timestep, XMVECTOR center) {
 		cell->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
 		entity->SetLocation(cell);													// update the objects location.							
 		cell->EnableUpdate();
-		//m_ActiveClusters[*(cell->GetCluster())] = cell->GetCluster();
 		m_renderCheckQueue.push_back(cell);
 		// add the objects new cell to the updateables list.
 	}		
@@ -437,43 +436,22 @@ void Map::CleanZones(Hex center) {
 
 
 void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
-	// check if we are moving up or down, this is important as the second condition only calculates for lateral traversal
-	if (h_direction.w != 0) {
-		std::vector<Hex> plane;
-		Cluster* cluster;
-		GetLocalMap2D(plane, center + (Hex{0,0,0,h_direction.w}* updateDistance), updateDistance);
-		for (int i = 0; i < plane.size(); i++) {
-			cluster = GetCluster(plane[i]);
+	std::vector<Hex> plane;
+	Cluster* cluster;
+	GetLocalMap2D(plane, center, updateDistance);
+	for (int i = 0; i < plane.size(); i++) {
+		for (int j = -updateDistance; j <= updateDistance; j++) {
+			Hex currentcluster = plane[i];
+			currentcluster.w = center.w + j;
+			cluster = GetCluster(currentcluster);
+			if (m_ActiveClusters.count(*cluster) == 0) {
+				cluster->Clean(center);
+			}
 			m_ActiveClusters[*cluster] = cluster;
 		}
-		plane.clear();
-		h_direction.w = 0;				// if h_direction is also a planar direction we need to test for that.
 	}
-	int i_direction = GetDirection(h_direction);
-	if (i_direction >= 0) {
-		// test for a valid direction before we do anything here, otherwise we risk weird/untracable crashes/bugs.
-		// get all the directions and units that we need to calculate the update and render check planes;
-		int i_behind = (i_direction + 3) % 6;
-		int i_leadingdirection1 = (i_direction + 2) % 6, i_leadingdirection2 = (i_direction + 4) % 6;
 
-		Hex h_behind = GetDirection(i_behind);
-		Hex h_leadingdirection1 = GetDirection(i_leadingdirection1);
-		Hex h_leadingdirection2 = GetDirection(i_leadingdirection2);
-		// do updateables and render checks at the same time for the leading planes, check for both update requirement and render requirement.
 
-		// leading planes * 2
-		Cluster* cluster;
-		Hex leading = center + (h_direction * updateDistance);
-		for (int i = -updateDistance; i <= updateDistance; i++) {
-			Hex currentl = Hex{ 0,0,0,i } +leading;
-			for (int j = 0; j <= updateDistance; j++) {
-				cluster = GetCluster(currentl + h_leadingdirection1 * j);		// leading plane 1
-				m_ActiveClusters[*cluster] = cluster;
-				cluster = GetCluster(currentl + h_leadingdirection2 * j);		// leading plane 2
-				m_ActiveClusters[*cluster] = cluster;
-			}
-		}
-	}
 	// disable Active clusters that are out of range
 	std::vector<Cluster*> outsideDistance;
 	//check the distance from the center to each updateable to determine if its out of range (this is faster than checking an entire plane)

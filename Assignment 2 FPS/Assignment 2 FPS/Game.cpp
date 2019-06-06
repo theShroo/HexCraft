@@ -22,8 +22,8 @@ Game::Game()
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_inventoryIndex = 0;
 	// flags for dynamic render distance are set to default values.
-	m_activeDistance = 1;
-	m_clustersize = 10;
+	m_activeDistance = 2;
+	m_clustersize = 5;
 	m_updated = false;
 	for (int i = 0; i < 4; i++) {
 		m_debugstrings.push_back(new std::wstring);
@@ -228,10 +228,10 @@ void Game::RefreshUI()
 	*m_debugstrings[0] = m_player->GetPositionString();
 	Hex location = Hex::VectorToHex(m_player->GetPosition());
 	*m_debugstrings[1] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	location = Hex::smalltobig(location, m_clustersize);
-	*m_debugstrings[2] = L"Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	location = Hex::smalltobig(m_currentPosition, m_clustersize);
+	*m_debugstrings[2] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 	location = m_player->GetLocation()->GetCluster()->GetLocation();
-	*m_debugstrings[3] = L"actual cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	*m_debugstrings[3] = L"player registered cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 
 
 	if (m_input->GetKeyDown(VK_F3)) {

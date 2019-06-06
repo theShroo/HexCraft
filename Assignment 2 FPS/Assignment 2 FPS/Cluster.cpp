@@ -130,13 +130,12 @@ void Cluster::Clean(Hex center) {
 void Cluster::_Initialise() {
 	Hex location = Hex::bigtosmall(m_location, m_clustersize);
 	std::vector<Hex> plane;
-	Cell* cell;
-	for (int i = 0; i <= m_clustersize; i++) {
+	for (int i = 0; i < m_clustersize; i++) {
 		m_owner->GetRing(plane, location, i);
 	}
 
 	for (int i = 0; i < plane.size(); i++) {
-		for (int j = -m_clustersize; j <= m_clustersize; j++) {
+		for (int j = 0; j < m_clustersize; j++) {
 			GetCell(Hex{ 0,0,0, j } +plane[i])->EnableRender();
 		}
 	}
