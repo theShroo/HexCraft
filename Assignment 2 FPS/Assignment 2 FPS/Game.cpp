@@ -237,9 +237,11 @@ void Game::RefreshUI()
 	if (m_input->GetKeyDown(VK_F3)) {
 		if (m_debug) {
 			m_debug = false;
+			m_map->AddObject(m_player);
 		}
 		else {
 			m_debug = true;
+			m_player->GetLocation()->GetEntities()->erase(m_player->operator PointerKey());
 		}
 	}
 
@@ -301,13 +303,19 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		int hp = m_player->GetHealth();
 
 
-		// quick hak to test/prevent the players cluster from falling out of the update cycle.
-		Cluster* current = m_player->GetLocation()->GetCluster();
-		m_map->GetActiveClusters()->operator[](*current) = current;
-		// TODO work out why there is a problem transfering the player from one cluster to another and maintaining the update process.
-		// for some reason when the player (and presumably any other entitiy) moves from one cluster to another the new sector is dropped from the update list.
-		// this is a critical problem.
-
+		// in debug mode the player is updated independently of the map.
+		if (m_debug) {
+			m_player->Update(timestep);
+		}
+		else 
+		{
+			// quick hak to test/prevent the players cluster from falling out of the update cycle.
+			Cluster* current = m_player->GetLocation()->GetCluster();
+			m_map->GetActiveClusters()->operator[](*current) = current;
+			// TODO work out why there is a problem transfering the player from one cluster to another and maintaining the update process.
+			// for some reason when the player (and presumably any other entitiy) moves from one cluster to another the new sector is dropped from the update list.
+			// this is a critical problem.
+		}
 		// dynamic zone incrementation to increment the zone as long as fps exceeds 60fps.
 		if (m_updated && timestep < 0.00833) {
 			

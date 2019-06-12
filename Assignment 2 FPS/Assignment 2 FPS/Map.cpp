@@ -129,6 +129,9 @@ void Map::Update(float timestep, XMVECTOR center) {
 		if (entity) {
 			PhysicsObject* active = entity->GetInteractive();
 			if (active) {
+				// do gravity
+				active->ApplyForce(MathsHelper::GetXMVECTOR3(0, -2.0f * timestep, 0));
+
 				Cell* cell = active->GetLocation();
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
@@ -236,7 +239,8 @@ void Map::Update(float timestep, XMVECTOR center) {
 		// then update all entites that remain to accept an update.
 
 		if (entity) {
-			entity->Update(timestep);															// update them.
+			entity->Update(timestep);	
+			// update them.
 			Hex newHex = Hex::VectorToHex(entity->GetPosition());
 			if (newHex != entity->GetLocation()->GetLocation()) {
 				if (entity->GetPlayer()) {

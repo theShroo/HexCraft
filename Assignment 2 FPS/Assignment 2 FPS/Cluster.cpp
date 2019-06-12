@@ -31,14 +31,34 @@ Cell* Cluster::GetCell(Hex cell) {
 	if (m_cluster.count(cell) < 1) {
 		Cell* newCell = new Cell(Hex::HexToVector(cell), this);
 		m_cluster[cell] = newCell;
-		float surface = (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0 / 9.0f, float(cell.y) * 10.0 / 9.0f)) * 30;
+		float surface = 1.0f; // (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0 / 9.0f, float(cell.y) * 10.0 / 9.0f)) * 30;
 		if (cell.w < surface) {
 			if (cell.w < surface - 10) {
 				newCell->SetType("Cobblestone", 0, 1);
-				newCell->SetHealth(15);
 			}
 			else {
-				newCell->SetType("Dirt", 0, 1);
+				int count = (m_location.x - m_location.y) % 3;
+				if (count < 0) count += 3;
+				switch (count) {
+				case 0:
+					newCell->SetType("Dirt", 0, 1);
+					newCell->SetHealth(15);
+					break;
+				case 1:
+					newCell->SetType("Cobblestone", 0, 1);
+					newCell->SetHealth(15);
+					break;
+				case 2:
+					newCell->SetType("Wall", 0, 1);
+					newCell->SetHealth(15);
+					break;
+				default:
+					newCell->SetType("Ammo", 0, 1);
+					newCell->SetHealth(15);
+					break;
+				}
+				// newCell->SetType("Cobblestone", 0, 1);
+				// newCell->SetHealth(15);
 			}
 		}
 	}

@@ -37,8 +37,6 @@ void Player::Update(float timestep)
 	}
 	m_ammoCount = ss.str();
 	m_cooldown -= timestep;
-	// do gravity
-	ApplyForce(MathsHelper::GetXMVECTOR3(0, -2.0f * timestep, 0));
 	XMVECTOR temp = m_position;
 	m_capsule.SetBottom(temp);
 	temp.m128_f32[1] += m_mesh[0]->GetTop().m128_f32[1];

@@ -106,15 +106,15 @@ struct Hex {
 
 
 	static Hex smalltobig(Hex smallHex, int radius) {
-		int x = smallHex.x, y = smallHex.y, z = smallHex.z;
-		double area = (3 * radius*radius ) + (3 * radius) + 1;
-		double shift = (3 * radius) + 2;
-		double xh = floor ((y + (shift * x)) / area);
-		double yh = floor((z + (shift * y)) / area);
-		double zh = floor((x + (shift * z)) / area);
-		int i = floor((1 + xh - yh) / 3);
-		int j = floor((1 + yh - zh) / 3);
-		int k = floor((1 + zh - xh) / 3);
+		float x = smallHex.x, y = smallHex.y, z = smallHex.z;
+		float area = (3 * radius*radius ) + (3 * radius) + 1;
+		float shift = (3 * radius) + 2;
+		float xh = floor((y + (shift * x)) / area);
+		float yh = floor((z + (shift * y)) / area);
+		float zh = floor((x + (shift * z)) / area);
+		int i = floor((1.0f + xh - yh) / 3);
+		int j = floor((1.0f + yh - zh) / 3);
+		int k = floor((1.0f + zh - xh) / 3);
 		int l = floor (smallHex.w / radius);
 		return Hex{ i, j, k, l };
 	}
