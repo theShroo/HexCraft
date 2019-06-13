@@ -21,8 +21,7 @@ private:
 	float m_fireRate;
 	std::vector<DirectX::XMVECTOR> m_patrolPoints;
 	unsigned m_currentPatrolPoint;
-	int m_type;
-
+	int m_type = 0;
 };
 
 

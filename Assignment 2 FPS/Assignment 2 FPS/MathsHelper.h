@@ -54,7 +54,7 @@ class Map;
 namespace MathsHelper{
 	float RandomRange(float min, float max);
 	int RandomRange(int min, int max);
-
+	int RoundFloatToInt(float value);
 	float RemapRange(float value, float fromMin, float fromMax, float toMin, float toMax);
 
 	float LerpFloat(float value1, float value2, float amount);

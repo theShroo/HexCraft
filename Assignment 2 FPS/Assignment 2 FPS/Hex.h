@@ -3,6 +3,7 @@
 #include <functional>
 #include "Direct3D.h"
 
+
 // struct to describe a hex tiles co-ordinates, each tile has a unique triplet.
 // we are going to extend this class to incorporate a height identifier, using a 4th int 
 // and hashing it with the rest.
@@ -49,7 +50,7 @@ struct Hex {
 	}
 
 	static XMVECTOR HexToVector(Hex coordinates) {
-		return MathsHelper::GetXMVECTOR3(1.732f * (coordinates.x + (float)coordinates.y / 2), coordinates.w, (float)3 / 2 * coordinates.y);
+		return MathsHelper::GetXMVECTOR3(1.732f * (float(coordinates.x) + float(coordinates.y) / 2.0f), float(coordinates.w), 3.0f / 2.0f * float(coordinates.y));
 	}
 
 	static Hex Float4ToHex(XMFLOAT4 coordinates) {
@@ -91,10 +92,10 @@ struct Hex {
 	}
 
 	static XMFLOAT4 LerpHex(Hex a, Hex b, float t) {
-		XMFLOAT4 result(MathsHelper::LerpFloat(a.x, b.x, t),
-			MathsHelper::LerpFloat(a.y, b.y, t),
-			MathsHelper::LerpFloat(a.z, b.z, t),
-			MathsHelper::LerpFloat(a.w, b.w, t));
+		XMFLOAT4 result(MathsHelper::LerpFloat(float(a.x), float(b.x), t),
+			MathsHelper::LerpFloat(float(a.y), float(b.y), t),
+			MathsHelper::LerpFloat(float(a.z), float(b.z), t),
+			MathsHelper::LerpFloat(float(a.w), float(b.w), t));
 		return result;
 	}
 
@@ -106,21 +107,21 @@ struct Hex {
 
 
 	static Hex smalltobig(Hex smallHex, int radius) {
-		float x = smallHex.x, y = smallHex.y, z = smallHex.z;
-		float area = (3 * radius*radius ) + (3 * radius) + 1;
-		float shift = (3 * radius) + 2;
+		float x = float(smallHex.x), y = float(smallHex.y), z = float(smallHex.z);
+		int area = (3 * radius*radius ) + (3 * radius) + 1;
+		int shift = (3 * radius) + 2;
 		float xh = floor((y + (shift * x)) / area);
 		float yh = floor((z + (shift * y)) / area);
 		float zh = floor((x + (shift * z)) / area);
-		int i = floor((1.0f + xh - yh) / 3);
-		int j = floor((1.0f + yh - zh) / 3);
-		int k = floor((1.0f + zh - xh) / 3);
-		int l = floor (smallHex.w / radius);
+		int i = int(floor((1.0f + xh - yh) / 3.0f));
+		int j = int(floor((1.0f + yh - zh) / 3.0f));
+		int k = int(floor((1.0f + zh - xh) / 3.0f));
+		int l = int(floor (smallHex.w / radius));
 		return Hex{ i, j, k, l };
 	}
 
 
-	// testing phase, single test case okay! (actually this function seems to be working very well), although it could be totally flawed
+	// testing phase, single test case okay! (actually this function seems to be working very well) Although, it could be totally flawed
 	// as its use is entirely based on math i understand, but is being used as a compliment to math that i do not understand very well at all
 	// and any lack of syncronisation with the smalltobig function will result in massive problems.
 	static Hex bigtosmall(Hex BigHex, int radius) {

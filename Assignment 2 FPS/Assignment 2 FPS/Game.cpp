@@ -22,8 +22,8 @@ Game::Game()
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_inventoryIndex = 0;
 	// flags for dynamic render distance are set to default values.
-	m_activeDistance = 2;
-	m_clustersize = 5;
+	m_activeDistance = 3;
+	m_clustersize = 8;
 	m_updated = false;
 	for (int i = 0; i < 4; i++) {
 		m_debugstrings.push_back(new std::wstring);
@@ -220,7 +220,7 @@ void Game::RefreshUI()
 {
 	// Ensure text in UI matches latest scores etc (call this after data changes)
 	// Concatenate data into our label string using a wide string stream
-	m_score = m_activeDistance;
+	m_score = float(m_activeDistance);
 	std::wstringstream ss;
 	ss << L"Render distance: " << m_score;
 	m_highScoreText = ss.str();
@@ -230,8 +230,8 @@ void Game::RefreshUI()
 	*m_debugstrings[1] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 	location = Hex::smalltobig(m_currentPosition, m_clustersize);
 	*m_debugstrings[2] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	location = m_player->GetLocation()->GetCluster()->GetLocation();
-	*m_debugstrings[3] = L"player registered cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	location = Hex::bigtosmall(m_player->GetLocation()->GetCluster()->GetLocation(), m_clustersize);
+	*m_debugstrings[3] = L"big to small location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 
 
 	if (m_input->GetKeyDown(VK_F3)) {

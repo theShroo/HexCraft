@@ -13,6 +13,13 @@ namespace MathsHelper {
 		// Includes min and max
 		return rand() % (max - min + 1) + min;
 	}
+	
+
+	// round a float towards 0 and return the value as an integer
+	int RoundFloatToInt(float value)
+	{
+			return value / 1; 
+	}
 
 	float RemapRange(float value, float fromMin, float fromMax, float toMin, float toMax)
 	{

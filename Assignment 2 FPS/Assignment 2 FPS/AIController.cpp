@@ -31,7 +31,7 @@ XMVECTOR AIController::GetNextTarget(AIPlayer *self) {
 		}
 	}
 	else if (self->GetType() == 2){
-		result = self->GetPosition() + MathsHelper::GetXMVECTOR3(rand() % 10 - 5, 0, rand() % 10 - 5);
+		result = self->GetPosition() + MathsHelper::GetXMVECTOR3(float(rand() % 10 - 5), 0.0f, float(rand() % 10 - 5));
 	}
 	else if (self->GetTarget()) {
 		XMVECTOR target = self->GetTarget()->GetPosition();
