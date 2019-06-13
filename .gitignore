@@ -4,3 +4,5 @@
 *.tlog
 *.opendb
 *.idb
+*.db-wal
+*.db-shm

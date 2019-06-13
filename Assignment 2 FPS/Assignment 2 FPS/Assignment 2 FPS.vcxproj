@@ -121,6 +121,7 @@
     <ProjectGuid>{88BD3953-3F24-4669-A23C-FA4F28E980E5}</ProjectGuid>
     <RootNamespace>Assignment2FPS</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>HexCraft</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
