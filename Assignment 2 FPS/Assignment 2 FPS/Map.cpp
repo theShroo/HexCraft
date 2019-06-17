@@ -116,22 +116,21 @@ void Map::GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range) {
 
 void Map::Update(float timestep, XMVECTOR center) {
 
-
-	std::vector<GameObject*> movedZone;																// list of objects that have left their zone.
 	std::vector<GameObject*> entitiesToUpdate;
-
+	std::vector<GameObject*> movedZone;																// list of objects that have left their zone.
 	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator iter_A, iter_B; // special iterator to iterate through an entity list
 	std::unordered_map<PointerKey, Cluster*, PointerHash>::iterator Cluster_Update_iter;   // Cluster iterator 
+	
+	
 	for (Cluster_Update_iter = m_ActiveClusters.begin(); Cluster_Update_iter != m_ActiveClusters.end(); Cluster_Update_iter++) {	// for all Clusters in the update area
 		Cluster* currentCluster = Cluster_Update_iter->second;
 		//	// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
-		currentCluster->Update(timestep,  movedZone, entitiesToUpdate, center);
+		currentCluster->Update(timestep, entitiesToUpdate, center);
 
 	}
 	// prep the entity iterator
 	for (int i = 0; i < entitiesToUpdate.size(); i++) {
 		GameObject* entity = entitiesToUpdate[i];
-		Cell** neighbours = entity->GetLocation()->GetNeigbours();
 
 		// do colisions for interactive objects
 		if (entity) {
@@ -149,24 +148,23 @@ void Map::Update(float timestep, XMVECTOR center) {
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
 				}
-				//check for local collisions with other active entities
-				for (int i = 0; i < 20; i++) {
-					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
-					if (potentials->size() > 0) {
-						for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
-							GameObject* potential = iter_B->second;
-							PhysicsObject* interactive = potential->GetInteractive();			// if interactive then collide
-							if (interactive) {
-								if (interactive != active) {
-									if (Collisions::CheckCollision(active->GetBounds(), interactive->GetBounds())) {
-										// do normal colision here.
-										active->DoCollision(interactive, this);
-									}
+				//check for local collisions with other active entities TODO: update this function to check neighbouring clusters for colisions with this object.
+				std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = active->GetLocation()->GetCluster()->GetEntities();
+				if (potentials->size() > 0) {
+					for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
+						GameObject* potential = iter_B->second;
+						PhysicsObject* interactive = potential->GetInteractive();			// if interactive then collide
+						if (interactive) {
+							if (interactive != active) {
+								if (Collisions::CheckCollision(active->GetBounds(), interactive->GetBounds())) {
+									// do normal colision here.
+									active->DoCollision(interactive, this);
 								}
 							}
 						}
 					}
 				}
+
 			}
 		}
 
@@ -176,8 +174,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 				XMVECTOR target = center;
 				target.m128_f32[1] += 1.0f;
 				loot->ApplyForce(DirectX::XMVector3Normalize(target - loot->GetPosition()) * timestep * 0.05f);
-				for (int i = 0; i < 20; i++) {
-					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
+					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = loot->GetLocation()->GetCluster()->GetEntities();
 					if (potentials->size() > 0) {
 						for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 							GameObject* potential = iter_B->second;
@@ -189,7 +186,6 @@ void Map::Update(float timestep, XMVECTOR center) {
 								}
 							}
 						}
-					}
 				}
 			}
 		}
@@ -207,8 +203,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 
 					bool ingun = false;
 
-					for (int i = 0; entity && i < 20; i++) {
-						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = neighbours[i]->GetEntities();
+						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = bullet->GetLocation()->GetCluster()->GetEntities();
 						if (potentials->size() > 0) {
 							for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 								GameObject* potential = iter_B->second;
@@ -228,7 +223,6 @@ void Map::Update(float timestep, XMVECTOR center) {
 								}
 							}
 						}
-					}
 					if (entity) {
 						if (bullet->m_ttl < 0) {								// if the bullet has expired and it hasnt hit anything.
 							this->RemoveObject(bullet);
@@ -245,7 +239,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 
 		// if it still needs to be updated push it back into a vector to be updated. this stops objects moving before other things can collide with them.
 		// then update all entites that remain to accept an update.
-
+		
 		if (entity) {
 			entity->Update(timestep);	
 			// update them.
@@ -275,30 +269,21 @@ void Map::Update(float timestep, XMVECTOR center) {
 	// move entites location flags
 	for (unsigned i = 0; i < movedZone.size(); i++) {												// move all flagged objects to their new cells
 		GameObject* entity = movedZone[i];
-		Cell* cell =entity->GetLocation();
-		cell->GetEntities()->erase(entity->operator PointerKey());	// remove the object from its old cell.
-		if (cell->GetEntities()->size() == 0) {						// if this cell has no entities left then remove it from the update list
-			cell->DisableUpdate();
-			m_renderCheckQueue.push_back(cell);						// and retest for renderability
-		}
+		Cluster* cluster =entity->GetLocation()->GetCluster();
+		cluster->GetEntities()->erase(entity->operator PointerKey());	// remove the object from its old cell.
 		Hex hex = Hex::VectorToHex(entity->GetPosition());
-		cell = GetCell(hex);
-		cell->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
+		Cell* cell = GetCell(hex);
+		cluster = cell->GetCluster();
+		cluster->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
 		entity->SetLocation(cell);													// update the objects location.							
-		cell->EnableUpdate();
-		m_renderCheckQueue.push_back(cell);
-		// add the objects new cell to the updateables list.
 	}		
 	// add new items to the map
 	for (unsigned i = 0; i < m_additionQueue.size(); i++) {											// add all items queued for inclusion.
 
 		Hex hex = m_additionQueue[i].second;
 		Cell* cell = GetCell(hex);
-		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetEntities();
+		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetCluster()->GetEntities();
 		entitylist->operator[](m_additionQueue[i].first->operator PointerKey()) = m_additionQueue[i].first;		// add the object to its new cell.
-		cell->EnableUpdate();																				// to prevent errors we will update teh cell when it is added to the update list.
-		cell->Update(0); 
-		//m_ActiveClusters[*(cell->GetCluster())] = cell->GetCluster();
 		m_additionQueue[i].first->SetLocation(cell);
 	}
 	m_additionQueue.clear();
@@ -306,13 +291,9 @@ void Map::Update(float timestep, XMVECTOR center) {
 	for (unsigned i = 0; i < m_removalQueue.size(); i++) {
 		Hex hex = m_removalQueue[i].second;
 		Cell* cell= GetCell(hex);
-		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetEntities();
+		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetCluster()->GetEntities();
 		entitylist->erase(m_removalQueue[i].first->operator PointerKey());
 		delete m_removalQueue[i].first;
-		if (cell->GetEntities()->size() < 1) {
-			cell->DisableUpdate();
-		}
-
 	}
 	m_removalQueue.clear();
 

@@ -23,7 +23,6 @@ public:
 	void Update(float timestep);
 	~Cell();
 	bool IsPassable() { return m_passable; }
-	std::unordered_map<PointerKey, GameObject*, PointerHash>* GetEntities();
 	void Break(int damage, int penetration);
 	void SetResistance(int resistance) { m_resistance = resistance; }
 	virtual Cell** GetNeigbours();
@@ -53,8 +52,6 @@ private:
 	Hex m_location;
 	// initialise the maps to the entities that exist within the area of this cell.
 	// these use the objects pointer as a key to reduce lookup times to O(1)
-	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator m_iter;
-	std::unordered_map<PointerKey, GameObject*, PointerHash> m_entities;
 	std::string m_type;
 	GameObject* m_gameObject;
 	DirectX::XMVECTOR m_position;

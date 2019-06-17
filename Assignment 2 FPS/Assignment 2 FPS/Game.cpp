@@ -240,7 +240,7 @@ void Game::RefreshUI()
 		}
 		else {
 			m_debug = true;
-			m_player->GetLocation()->GetEntities()->erase(m_player->operator PointerKey());
+			m_player->GetLocation()->GetCluster()->GetEntities()->erase(m_player->operator PointerKey());
 		}
 	}
 

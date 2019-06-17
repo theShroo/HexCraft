@@ -1,3 +1,14 @@
+/*
+	Cluster.h written by Russell Harland 2019
+
+	a class to describe the cluster class
+	contains all the methods used to initialise and interface with a specific block of cells. 
+
+
+*/
+
+
+
 #include "Cluster.h"
 #include "Map.h"
 #include "Loot.h"
@@ -17,14 +28,18 @@ Cluster::Cluster(Hex location, Map* Owner, int clustersize)
 
 Cluster::~Cluster()
 {
-	std::unordered_map<Hex, Cell*, hash_Hex>::iterator terminator;
-	for (terminator = m_cluster.begin(); terminator != m_cluster.end(); terminator++) {
+	for (auto terminator = m_cluster.begin(); terminator != m_cluster.end(); terminator++) {
 		if (terminator->second) {
 			delete terminator->second;
 			terminator->second = 0;
 		}
 	}
-
+	for (auto terminator = m_entities.begin(); terminator != m_entities.end(); terminator++) {
+		if (terminator->second) {
+			delete terminator->second;
+			terminator->second = 0;
+		}
+	}
 }
 
 Cell* Cluster::GetCell(Hex cell) {
@@ -80,7 +95,7 @@ int Cluster::GetCount() {
 	return m_cluster.size();
 }
 
-void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
+void Cluster::Update(float timestep, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
 {
 	if (!m_initialised) {
 		m_initialised = 1;
@@ -93,13 +108,12 @@ void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::v
 		Cell* currentCell = Update_iter->second;
 		// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
 		currentCell->Update(timestep);
-		std::unordered_map<PointerKey, GameObject*, PointerHash>* entities = currentCell->GetEntities();		// get all game objects.
-		if (entities->size() > 0) {
-			for (iter_A = entities->begin(); iter_A != entities->end(); iter_A++) {
-				GameObject* entity = iter_A->second;
-				if (entity) {
-					entitiesToUpdate.push_back(entity);
-				}
+	}
+	if (m_entities.size() > 0) {
+		for (iter_A = m_entities.begin(); iter_A != m_entities.end(); iter_A++) {
+			GameObject* entity = iter_A->second;
+			if (entity) {
+				entitiesToUpdate.push_back(entity);
 			}
 		}
 	}
@@ -135,19 +149,29 @@ void Cluster::Render(Direct3D* renderer, Camera* cam) {
 	for (auto i = m_cellRenderables.begin(); i != m_cellRenderables.end(); i++) {
 		i->second->Render(renderer, cam);
 	}
+	if (m_entities.size() > 0) {
+		for (auto m_iter = m_entities.begin(); m_iter != m_entities.end(); m_iter++) {
+			m_iter->second->Render(renderer, cam);
+		}
+	}
 }
 
+std::unordered_map<PointerKey, GameObject*, PointerHash>* Cluster::GetEntities() {
+	return &m_entities;
+}
 
 void Cluster::Clean(Hex center) {
 	std::vector<Cell*> cleaned;
 	// if a cell has no entities, dont update it.
 	for (auto i = m_cluster.begin(); i != m_cluster.end(); i++) {
-		if (i->second->GetEntities()->size() > 0) {
-			EnableUpdate(i->second);
-		}
-		else {
-			DisableUpdate(i->second);
-		}
+
+		// at the moment there are no conditions that require a cell to be active.
+		//if (i->second->GetEntities()->size() > 0) {
+		//	EnableUpdate(i->second);
+		//}
+		//else {
+		//	DisableUpdate(i->second);
+		//}
 		if (i->second->CheckRender()) {
 			EnableRender(i->second);
 		}

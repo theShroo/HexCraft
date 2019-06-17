@@ -20,23 +20,11 @@ Cell::Cell(XMVECTOR position, Cluster* owner) {
 
 Cell::~Cell() {
 	// delete all entities associated with the cell.
-	std::unordered_map<PointerKey, GameObject*, PointerHash>::iterator terminator;
-	for (terminator = m_entities.begin(); terminator != m_entities.end(); terminator++) {
-		if (terminator->second) {
-			delete terminator->second;
-			terminator->second = 0;
-		}
-	}
 	delete m_gameObject;
 }
 
 void Cell::Render(Direct3D* renderer, Camera* cam) {
 	m_gameObject->Render(renderer, cam);
-	if (m_entities.size() > 0) {
-		for (m_iter = m_entities.begin(); m_iter != m_entities.end(); m_iter++) {
-			m_iter->second->Render(renderer, cam);
-		}
-	}
 }
 
 
@@ -54,10 +42,6 @@ void Cell::SetType(std::string new_type, bool passable, bool solid) {
 	m_solid = solid;
 }
 
-
-std::unordered_map<PointerKey, GameObject*, PointerHash>* Cell::GetEntities() {
-	return &m_entities;
-}
 
 void Cell::Break(int damage, int penetration) {
 	m_health -= damage - (m_resistance - penetration);
@@ -126,9 +110,6 @@ void Cell::EnableRender() {
 
 bool Cell::CheckRender() {
 	bool renderable = false;
-	if (GetEntities()->size() > 0) {
-		renderable = true;
-	}
 	// this brute force render check replaces the math heavy version that only checks the cells on the visible faces,
 	// the result is that cells that have no faces visible to the player are still rendered, BUT this is still twice as efficient compared to the other version.
 	if (!renderable && IsSolid()) {
