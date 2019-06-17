@@ -76,6 +76,10 @@ Map* Cluster::GetOwner()
 	return m_owner;
 }
 
+int Cluster::GetCount() {
+	return m_cluster.size();
+}
+
 void Cluster::Update(float timestep, std::vector<GameObject*>& movedZone, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
 {
 	if (!m_initialised) {
@@ -162,7 +166,7 @@ void Cluster::_Initialise() {
 
 	for (int i = 0; i < plane.size(); i++) {
 		for (int j = 0; j < m_clustersize; j++) {
-			GetCell(Hex{ 0,0,0, j } +plane[i])->EnableRender();
+			GetCell(Hex{ 0,0,0, j } +plane[i]);
 		}
 	}
 	Clean(location);

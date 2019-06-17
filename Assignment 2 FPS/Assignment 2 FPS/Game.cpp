@@ -230,8 +230,7 @@ void Game::RefreshUI()
 	*m_debugstrings[1] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 	location = Hex::smalltobig(m_currentPosition, m_clustersize);
 	*m_debugstrings[2] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	location = Hex::bigtosmall(m_player->GetLocation()->GetCluster()->GetLocation(), m_clustersize);
-	*m_debugstrings[3] = L"big to small location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	*m_debugstrings[3] = L"Cells loaded. Total: " + std::to_wstring(m_map->GetCount()) + L", this cluster: " + std::to_wstring(m_map->GetCell(m_currentPosition)->GetCluster()->GetCount());
 
 
 	if (m_input->GetKeyDown(VK_F3)) {
@@ -290,7 +289,10 @@ void Game::Shutdown()
 		delete m_map;
 		m_map = 0;
 	}
-
+	for (int i = 0; i < m_debugstrings.size(); i++) {
+		delete m_debugstrings[i];
+	}
+	m_debugstrings.clear();
 	// new managers have easy release functions
 	Shader::Release();
 	Mesh::Release();

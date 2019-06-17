@@ -60,6 +60,14 @@ Cluster* Map::GetCluster(Hex cluster)
 	return m_map[cluster];
 }
 
+int Map::GetCount() {
+	int total = 0;
+	for (auto iter_A = m_map.begin(); iter_A != m_map.end(); iter_A++) {
+		total += (iter_A->second->GetCount());
+	}
+	return total;
+}
+
 void Map::Initialise(Hex position, int distance)
 {
 	std::vector<Hex> zone;

@@ -27,6 +27,7 @@ public:
 
 	Cell* GetCell(Hex cell);
 	Map* GetOwner();
+	int GetCount();
 	void Update(float timestep, std::vector<GameObject*> &movedZone, std::vector<GameObject*> &entitiesToUpdate, XMVECTOR center);
 	void DisableUpdate(Cell* cell);
 	void EnableUpdate(Cell* cell);

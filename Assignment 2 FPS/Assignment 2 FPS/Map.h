@@ -51,6 +51,7 @@ public:
 	Cell* GetCell(int x, int y, int height);
 	Cell* GetCell(Hex cell);
 	Cluster* GetCluster(Hex cluster);
+	int GetCount();
 	void Initialise(Hex position, int distance);
 	void GetLocalMap(std::vector<Hex> &localMap, Hex center, int range);
 	void GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range);
