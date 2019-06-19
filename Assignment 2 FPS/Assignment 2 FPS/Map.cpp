@@ -42,7 +42,7 @@ std::unordered_map<Hex, Cluster*, hash_Hex>::iterator terminator;
 }
 
 
-// Get Cell function updated in the map class, it now passes a loarge chunk of logic into the cluster class, 
+// Get Cell function updated in the map class, it now passes a large chunk of logic into the cluster class, 
 // and breaks the map up into predefined 'chunks' to allow for smooth loading and unloading of cell groups
 
 Cell* Map::GetCell(Hex cell) {
@@ -452,23 +452,15 @@ void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
 		if (i->second->GetLocation().distance(center) > updateDistance + 1) {
 			outsideDistance.push_back(i->second);
 		}
-		else if (i->second->GetLocation().w > updateDistance) {
-			outsideDistance.push_back(i->second);
-		}
 	}
 	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
 		m_ActiveClusters.erase(*outsideDistance[i]);
-		m_map.erase(outsideDistance[i]->GetLocation());
-		delete outsideDistance[i];
 	}
 	outsideDistance.clear();
 
 	// delete clusters from the map that are even further out of range.
 	for (auto i = m_map.begin(); i != m_map.end(); i++) {
 		if (i->second->GetLocation().distance(center) > updateDistance + 3) {
-			outsideDistance.push_back(i->second);
-		}
-		else if (i->second->GetLocation().w > updateDistance) {
 			outsideDistance.push_back(i->second);
 		}
 	}
@@ -488,32 +480,32 @@ bool Map::IncrementZone(Hex center, int updateDistance) {
 		GetRing(plane, center, i);
 	}
 	GetRing(ring, center, updateDistance);
-	bool incremented = false;
-	for (int i = 0; i < ring.size() && incremented == false; i++) {
+	int incremented = 0;
+	for (int i = 0; i < ring.size() && incremented < 10; i++) {
 		for (int j = -updateDistance; j <= updateDistance && incremented == false; j++) {
 			cluster = GetCluster(Hex{ 0,0,0,j } +ring[i]);
 			if (m_ActiveClusters.count(*cluster) == 0) {
 				m_ActiveClusters[*cluster] = cluster;
 				cluster->Clean(center);
-				incremented = true;
+				incremented += 1;
 			}
 		}
 	}
 
-	for (int i = 0; i < plane.size() && incremented == false; i++) {
+	for (int i = 0; i < plane.size() && incremented < 10; i++) {
 		cluster = GetCluster(Hex{ 0,0,0, updateDistance } +plane[i]);
 		if (m_ActiveClusters.count(*cluster) == 0) {
 			m_ActiveClusters[*cluster] = cluster;
 			cluster->Clean(center);
-			incremented = true;
+			incremented += 1;
 		}
 		cluster = GetCluster(Hex{ 0,0,0, -updateDistance } +plane[i]);
 		if (m_ActiveClusters.count(*cluster) == 0) {
 			m_ActiveClusters[*cluster] = cluster;
 			cluster->Clean(center);
-			incremented = true;
+			incremented += 1;
 		}
-	}	
-	return incremented;
-
+	}
+	if (incremented < 10) { return false; }
+	else {return true;}
 }

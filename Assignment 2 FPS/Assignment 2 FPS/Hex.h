@@ -139,10 +139,9 @@ struct Hex {
 
 struct hash_Hex {
 	// this unique triplet allows us to create a unique hash for each tile by using the following hash function. this function overloads the () operator to provide a hashable value when called as a function
-	size_t operator()(const Hex &hex) const {
-		return std::hash<int>()(hex.x) ^ std::hash<int>()(hex.y) ^ std::hash<int>()(hex.z) ^ std::hash<int>()(hex.w);
+	size_t operator()(const Hex& hex) const {
+		return 1 ^ std::hash<int>()(hex.x) ^ std::hash<int>()(hex.y) ^ std::hash<int>()(hex.z) ^ std::hash<int>()(hex.w);
 	}
-
 };
 
 

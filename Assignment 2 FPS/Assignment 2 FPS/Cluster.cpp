@@ -34,19 +34,22 @@ Cluster::~Cluster()
 			terminator->second = 0;
 		}
 	}
+	m_cluster.clear();
+
 	for (auto terminator = m_entities.begin(); terminator != m_entities.end(); terminator++) {
 		if (terminator->second) {
 			delete terminator->second;
 			terminator->second = 0;
 		}
 	}
+	m_entities.clear();
 }
 
 Cell* Cluster::GetCell(Hex cell) {
 	if (m_cluster.count(cell) < 1) {
 		Cell* newCell = new Cell(Hex::HexToVector(cell), this);
 		m_cluster[cell] = newCell;
-		float surface = (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0 / 9.0f, float(cell.y) * 10.0 / 9.0f)) * 30;
+		float surface = (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0f / 9.0f, float(cell.y) * 10.0f / 9.0f)) * 30;
 		if (cell.w < surface) {
 			if (cell.w < surface - 10) {
 				newCell->SetType("Cobblestone", 0, 1);
@@ -92,7 +95,7 @@ Map* Cluster::GetOwner()
 }
 
 int Cluster::GetCount() {
-	return m_cluster.size();
+	return int(m_cluster.size());
 }
 
 void Cluster::Update(float timestep, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)

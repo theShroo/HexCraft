@@ -220,9 +220,9 @@ void Game::RefreshUI()
 {
 	// Ensure text in UI matches latest scores etc (call this after data changes)
 	// Concatenate data into our label string using a wide string stream
-	m_score = float(m_activeDistance);
+	m_score = float(m_map->GetActiveClusters()->size());
 	std::wstringstream ss;
-	ss << L"Render distance: " << m_score;
+	ss << L"Clusters rendered: " << m_score;
 	m_highScoreText = ss.str();
 
 	*m_debugstrings[0] = m_player->GetPositionString();
@@ -261,8 +261,9 @@ void Game::InitGameWorld()
 	m_currentPosition = Hex{ 0,0,0,0 };
 
 	m_map->Initialise(m_currentPosition, m_activeDistance);
-
+	Hex hex = { 0, 0,0,16 };
 	m_map->Update(0, m_player->GetPosition());
+	m_map->GetCell(Hex(hex));
 }
 void Game::Update(float timestep)
 {
@@ -312,8 +313,8 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		else 
 		{
 			// quick hak to test/prevent the players cluster from falling out of the update cycle.
-			Cluster* current = m_player->GetLocation()->GetCluster();
-			m_map->GetActiveClusters()->operator[](*current) = current;
+			//Cluster* current = m_player->GetLocation()->GetCluster();
+			//m_map->GetActiveClusters()->operator[](*current) = current;
 			// TODO work out why there is a problem transfering the player from one cluster to another and maintaining the update process.
 			// for some reason when the player (and presumably any other entitiy) moves from one cluster to another the new sector is dropped from the update list.
 			// this is a critical problem.
