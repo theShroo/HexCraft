@@ -19,6 +19,8 @@ private:
 	bool m_initialised = 0;
 	void _Initialise();
 
+	void _Deinitialise();
+
 public:
 
 	Cluster(Hex location, Map* Owner, int clustersize);
@@ -29,6 +31,7 @@ public:
 	Cell* GetCell(Hex cell);
 	Map* GetOwner();
 	int GetCount();
+	Cell* CheckCell(Hex cell);
 	void Update(float timestep, std::vector<GameObject*> &entitiesToUpdate, XMVECTOR center);
 	void DisableUpdate(Cell* cell);
 	void EnableUpdate(Cell* cell);

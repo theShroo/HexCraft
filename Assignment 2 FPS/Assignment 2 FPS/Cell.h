@@ -38,6 +38,7 @@ public:
 	void DisableRender();
 	void EnableRender();
 	bool CheckRender();
+	void Uninitialise();
 
 private:
 	Cell** (Cell::*m_initialised)();

@@ -44,24 +44,38 @@ private:
 public:
 	Hex GetDirection(int direction);
 	int GetDirection(Hex direction);
+	SimplexNoise* simplexNoise();
+
 	// constructor/destructor
 	Map(int clustersize);
 	~Map();
+
+	void Initialise(Hex position, int distance);
+
 	// accessors
+	
+	// these accessors create the object if none exists;
 	Cell* GetCell(int x, int y, int height);
 	Cell* GetCell(Hex cell);
 	Cluster* GetCluster(Hex cluster);
-	int GetCount();
-	void Initialise(Hex position, int distance);
 	void GetLocalMap(std::vector<Hex> &localMap, Hex center, int range);
 	void GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range);
 	void GetRing(std::vector<Hex> &HexList, Hex center, int radius);
 	void GetLine(std::vector<Hex> &HexList, Hex from, Hex to);
+	int GetCount();
+
+	// these accessors return a nullptr if the object doesn't exist.
+	Cell* CheckCell(Hex cell);
+	Cluster* CheckCluster(Hex cluster);
+	std::unordered_map<PointerKey, Cluster*, PointerHash>* GetActiveClusters() { return &m_ActiveClusters; }
+
+
 	// mutators
 	void AddObject(GameObject* object);
 	void RemoveObject(GameObject* object);
 	GameObject* AddAI(int type, Player* target, float range = 5);
 	GameObject* AddLoot(std::string name, std::string shader, std::string mesh, std::string texture, DirectX::XMVECTOR location, int qty);
+	
 	// function to check the current update and render list for renderability and updatability.
 	void CleanZones(Hex center);
 	// a function to add the planes in the direction of travel to the render and update lists.
@@ -73,7 +87,6 @@ public:
 	// update and render functions
 	void Update(float timetep, DirectX::XMVECTOR center);
 	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam);
-	std::unordered_map<PointerKey, Cluster*, PointerHash>* GetActiveClusters() { return &m_ActiveClusters; }
-		SimplexNoise* simplexNoise();
+
 };
 #endif

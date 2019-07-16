@@ -68,6 +68,29 @@ int Map::GetCount() {
 	return total;
 }
 
+// sterile fetcher
+Cell* Map::CheckCell(Hex cell)
+{
+	// for the target cell we need to locate its cluster 
+	Hex clusterLoc = Hex::smalltobig(cell, m_clusterSize);
+	Cluster* cluster = CheckCluster(clusterLoc);
+	if (cluster) { return cluster->CheckCell(cell); }
+	else { return nullptr; }
+	
+
+}
+
+
+// sterile fetcher
+Cluster* Map::CheckCluster(Hex cluster)
+{
+	auto target = m_map.find(cluster);
+	if (target != m_map.end()) {
+		return target->second;
+	}
+	else return nullptr;
+}
+
 void Map::Initialise(Hex position, int distance)
 {
 	std::vector<Hex> zone;
@@ -307,12 +330,7 @@ void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam) {
 	for (int i = 0; i < m_renderCheckQueue.size(); i++) {
 		Cell* cell = m_renderCheckQueue[i];
 		if (cell) {
-			if (cell->CheckRender()) {
-				cell->EnableRender();
-			}
-			else {
-				cell->DisableRender();
-			}
+			cell->CheckRender();
 		}
 	}
 	m_renderCheckQueue.clear();

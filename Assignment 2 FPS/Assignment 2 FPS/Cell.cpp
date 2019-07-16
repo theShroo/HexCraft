@@ -18,6 +18,9 @@ Cell::Cell(XMVECTOR position, Cluster* owner) {
 	m_owner = owner->GetOwner();
 }
 
+// this method does not clear the pointers to this cell. especially those held by its neighbours.
+// such a method will be implemented seperatly to streamline batch deletion.
+
 Cell::~Cell() {
 	// delete all entities associated with the cell.
 	delete m_gameObject;
@@ -47,6 +50,9 @@ void Cell::Break(int damage, int penetration) {
 	m_health -= damage - (m_resistance - penetration);
 	Update(0);
 }
+// cells need to update their data, especially if their tile has been destroyed.
+// little optimisation here to avoid initialising the object more than once, and to avoid the if statement
+// we will use a function pointer to the correct update version to run.
 
 void Cell::Initialise() {
 	m_initialised = &Cell::_GetNeigbours;
@@ -60,16 +66,16 @@ void Cell::Initialise() {
 	}
 	
 }
-// cells need to update their data, especially if their tile has been destroyed.
-// little optimisation here to avoid initialising the object more than once, and to avoid the if statement
-// we will use a function pointer to the correct update version to run.
 
 void Cell::Update(float timestep) {
 	if (m_health <= 0) {
 		GameObject* loot = m_owner->AddLoot(m_type, "Diffuse Texture Fog Shader", "Hexagon", m_type, m_position, 1);
 		SetType("Air", true, false);
-		m_owner->RenderCheck(this);
+		CheckRender();
 		loot->Resize(0.1f);
+		for (int i = 0; i < 20; i++) {
+			m_owner->RenderCheck(m_neighbours[i]);
+		}
 	}
 }
 
@@ -115,9 +121,19 @@ bool Cell::CheckRender() {
 	if (!renderable && IsSolid()) {
 		for (int i = 0; i < 20 && !renderable; i++) {
 			if (!GetNeigbours()[i]->IsSolid()) {
+				EnableRender();
 				renderable = true;
 			}
 		}
 	}
+	else {
+		DisableRender();
+	}
 	return renderable;
+}
+
+void Cell::Uninitialise()
+{
+	m_initialised = &Cell::_GetNeigboursInit;
+
 }

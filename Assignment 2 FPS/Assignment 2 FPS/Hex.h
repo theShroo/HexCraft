@@ -99,13 +99,8 @@ struct Hex {
 		return result;
 	}
 
-	// a potentially unstable conversion from a small hex to its owner cluster
-	// this function was interpreted from a tutorial by sander evans and uses code that is highly implementation dependant
-	// the floor funtion may or may not return the same results as his version (despite using exactly the same logic) as
-	// both integer division of numbers below 0 and the floor function on numbers below 0 work in unpredictable ways.
-	// this will be the cause of many bugs until serious work is done to standardise the results.
-
-
+	// a conversion from a "small hex" to a "large hex" including proper rounding and 30 degree rotation.
+	// this function was interpreted from a tutorial by sander evans and has been tested and it works. Thanks to Sander Evans and all his hard work.
 	static Hex smalltobig(Hex smallHex, int radius) {
 		float x = float(smallHex.x), y = float(smallHex.y), z = float(smallHex.z);
 		int area = (3 * radius*radius ) + (3 * radius) + 1;
@@ -121,9 +116,7 @@ struct Hex {
 	}
 
 
-	// testing phase, single test case okay! (actually this function seems to be working very well) Although, it could be totally flawed
-	// as its use is entirely based on math i understand, but is being used as a compliment to math that i do not understand very well at all
-	// and any lack of syncronisation with the smalltobig function will result in massive problems.
+	//function to convert a "large hex" into a "small hex" co-ordinate. involves a multiplication and 30 degree rotation of the co-ordinates at the same time.
 	static Hex bigtosmall(Hex BigHex, int radius) {
 		int x = BigHex.x, y = BigHex.y, z = BigHex.z;
 		int i = (x*((radius*2) +1))+ (y*radius);

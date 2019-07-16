@@ -25,9 +25,10 @@ Cluster::Cluster(Hex location, Map* Owner, int clustersize)
 	m_clustersize = clustersize;
 }
 
-
+// terminator gets complex, TODO implement storage of cluster data to a file before cluster is destroyed.
 Cluster::~Cluster()
 {
+	// delete all the cells in the cluster
 	for (auto terminator = m_cluster.begin(); terminator != m_cluster.end(); terminator++) {
 		if (terminator->second) {
 			delete terminator->second;
@@ -36,6 +37,7 @@ Cluster::~Cluster()
 	}
 	m_cluster.clear();
 
+	// delete all the entities in the cluster
 	for (auto terminator = m_entities.begin(); terminator != m_entities.end(); terminator++) {
 		if (terminator->second) {
 			delete terminator->second;
@@ -43,10 +45,17 @@ Cluster::~Cluster()
 		}
 	}
 	m_entities.clear();
+	// final method to uninitialise all cells whose pointers have been invalidated by the deletion of the cluster.
+	_Deinitialise();
+
+
+
 }
 
+// safe cell fetcher. this method returns the target cell, creating one if none exist.
 Cell* Cluster::GetCell(Hex cell) {
-	if (m_cluster.count(cell) < 1) {
+	auto target = m_cluster.find(cell);
+	if (target == m_cluster.end()) {
 		Cell* newCell = new Cell(Hex::HexToVector(cell), this);
 		m_cluster[cell] = newCell;
 		float surface = (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0f / 9.0f, float(cell.y) * 10.0f / 9.0f)) * 30;
@@ -85,8 +94,9 @@ Cell* Cluster::GetCell(Hex cell) {
 				newCell->SetHealth(1);
 			}
 		}
+		return newCell;
 	}
-	return m_cluster[cell];
+	return target->second;
 }
 
 Map* Cluster::GetOwner()
@@ -96,6 +106,17 @@ Map* Cluster::GetOwner()
 
 int Cluster::GetCount() {
 	return int(m_cluster.size());
+}
+// sterile cell fetcher, returning a nullptr if the cell does not exist.
+Cell* Cluster::CheckCell(Hex cell)
+{
+	auto target = m_cluster.find(cell);
+	if (target == m_cluster.end()) {
+		return nullptr;
+	}
+	else {
+		return target->second;
+	}
 }
 
 void Cluster::Update(float timestep, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
@@ -175,12 +196,7 @@ void Cluster::Clean(Hex center) {
 		//else {
 		//	DisableUpdate(i->second);
 		//}
-		if (i->second->CheckRender()) {
-			EnableRender(i->second);
-		}
-		else {
-			DisableRender(i->second);
-		};
+		i->second->CheckRender();
 	}
 }
 
@@ -198,4 +214,19 @@ void Cluster::_Initialise() {
 	}
 	Clean(location);
 
+}
+
+void Cluster::_Deinitialise() {
+	Hex location = Hex::bigtosmall(m_location, m_clustersize);
+	std::vector<Hex> plane;
+	for (int i = 0; i <= m_clustersize+1; i++) {
+		m_owner->GetRing(plane, location, i);
+	}
+	Cell* target = nullptr;
+	for (int i = 0; i < plane.size(); i++) {
+		for (int j = -1; j < m_clustersize+1; j++) {
+			target = CheckCell(Hex{ 0,0,0, j } +plane[i]);
+			if (target) target->Uninitialise();
+		}
+	}
 }
