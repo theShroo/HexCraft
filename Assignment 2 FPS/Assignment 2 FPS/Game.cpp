@@ -10,14 +10,33 @@
 #include "Cell.h"
 
 using namespace DirectX;
+using namespace HexLogic;
+
+
+
+// overload the ++ operator for debug states to enable cycling the debug state.
+DebugState operator++(DebugState& state) {
+	state = DebugState(state + 1);
+	if (state > 3) state = NoDebug;
+
+	return state;
+}
+
+DebugState& operator++(DebugState& state, int val) {
+	DebugState old = state;
+	state = DebugState(state + 1);
+	if (state > 3) state = NoDebug;
+	return old;
+}
+
+
 
 Game::Game()
 {
 	m_renderer = 0;
 	m_input = 0;
 	m_player = 0;
-	m_score = 0;
-	m_debug = false;
+	m_debug = NoDebug;
 	// seed the random number generator
 	m_generator = std::default_random_engine(unsigned(std::chrono::system_clock::now().time_since_epoch().count()));
 	m_inventoryIndex = 0;
@@ -25,12 +44,13 @@ Game::Game()
 	m_activeDistance = 3;
 	m_clustersize = 8;
 	m_updated = false;
-	for (int i = 0; i < 4; i++) {
-		m_debugstrings.push_back(new std::wstring);
+	for (int i = 0; i < 6; i++) {
+		m_debugstrings.push_back(new std::wstring());
 	}
 }
 
-Game::~Game() {}
+Game::~Game() {
+}
 
 // initialise the Game Object
 bool Game::Initialise(Direct3D* renderer, InputController* input)
@@ -104,6 +124,7 @@ void Game::LoadUI()
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[1], XMFLOAT2(20, 230), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[2], XMFLOAT2(20, 260), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[3], XMFLOAT2(20, 290), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[3], XMFLOAT2(20, 320), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 
 	// initialise the spriteManagers.
 	std::pair<int, int> size = m_input->GetWindowSize();
@@ -115,7 +136,7 @@ void Game::LoadUI()
 	m_stateMachine->RegisterState(Active, 0, ActiveUpdateFunction(),
 		// game render lambda
 		[this]() { m_map->RenderLocal(m_player->GetPosition(), m_renderer, m_player->GetCamera());
-			if (m_debug) {
+			if (m_debug & MathsHelper::option0) {
 				m_debugOverlay->Render();
 		}
 	}, 0);
@@ -123,7 +144,6 @@ void Game::LoadUI()
 	m_stateMachine->Spritemanager(Active)->MakeSprite(Texture::GetTexture("Cross Hair"), XMFLOAT2((size.first - 20.0f) / 2.0f, (size.second - 20.0f) / 2.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT2(20,20));
 	m_stateMachine->Spritemanager(Active)->MakeSprite(Texture::GetTexture("Health"), XMFLOAT2(25, size.second - 50), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(m_player->GetHealth(), 40));
 	m_stateMachine->Spritemanager(Active)->MakeSprite(Texture::GetTexture("Hurt"), XMFLOAT2(0,0), XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), XMFLOAT2(size.first,size.second));
-	m_stateMachine->Spritemanager(Active)->MakeSpriteFont("Ariel 18", &m_highScoreText, XMFLOAT2(20, 150), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	m_stateMachine->Spritemanager(Active)->MakeSpriteFont("Ariel 18", &m_player->GetAmmoCounter(), XMFLOAT2(20, 180), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	// win
 	m_stateMachine->RegisterState(Victory, 0, 0, 0, 0);
@@ -220,30 +240,31 @@ void Game::RefreshUI()
 {
 	// Ensure text in UI matches latest scores etc (call this after data changes)
 	// Concatenate data into our label string using a wide string stream
-	m_score = float(m_map->GetActiveClusters()->size());
 	std::wstringstream ss;
-	ss << L"Clusters rendered: " << m_score;
-	m_highScoreText = ss.str();
+	ss << L"Clusters rendered: " << float(m_map->GetActiveClusters()->size());
+	*m_debugstrings[0] = ss.str();
 
-	*m_debugstrings[0] = m_player->GetPositionString();
-	Hex location = Hex::VectorToHex(m_player->GetPosition());
-	*m_debugstrings[1] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	location = Hex::smalltobig(m_currentPosition, m_clustersize);
-	*m_debugstrings[2] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	*m_debugstrings[3] = L"Cells loaded. Total: " + std::to_wstring(m_map->GetCount()) + L", this cluster: " + std::to_wstring(m_map->GetCell(m_currentPosition)->GetCluster()->GetCount());
+	*m_debugstrings[1] = m_player->GetPositionString();
+	Hex location = VectorToHex(m_player->GetPosition());
+	*m_debugstrings[2] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y) + L", Z: " + std::to_wstring(location.z) + L", W: " + std::to_wstring(location.w);
+	location = smalltobig(m_currentPosition, m_clustersize);
+	*m_debugstrings[3] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
+	*m_debugstrings[4] = L"Cells loaded. Total: " + std::to_wstring(m_map->GetCount()) + L", this cluster: " + std::to_wstring(m_map->GetCell(m_currentPosition)->GetCluster()->GetCount());
 
 
 	if (m_input->GetKeyDown(VK_F3)) {
-		if (m_debug) {
-			m_debug = false;
-			m_map->AddObject(m_player);
-		}
-		else {
-			m_debug = true;
-			m_player->GetLocation()->GetCluster()->GetEntities()->erase(m_player->operator PointerKey());
+		bool before = (m_debug & MathsHelper::option1);
+		m_debug++;
+		bool after = (m_debug & MathsHelper::option1);
+		if (before != after) {
+			if (after) {
+				m_player->GetLocation()->GetEntities()->erase(m_player->operator PointerKey());
+			}
+			else {
+				m_map->AddObject(m_player);
+			}
 		}
 	}
-
 }
 
 void Game::InitGameWorld()
@@ -307,17 +328,8 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 
 
 		// in debug mode the player is updated independently of the map.
-		if (m_debug) {
+		if (m_debug & MathsHelper::option1) {
 			m_player->Update(timestep);
-		}
-		else 
-		{
-			// quick hak to test/prevent the players cluster from falling out of the update cycle.
-			//Cluster* current = m_player->GetLocation()->GetCluster();
-			//m_map->GetActiveClusters()->operator[](*current) = current;
-			// TODO work out why there is a problem transfering the player from one cluster to another and maintaining the update process.
-			// for some reason when the player (and presumably any other entitiy) moves from one cluster to another the new sector is dropped from the update list.
-			// this is a critical problem.
 		}
 		// dynamic zone incrementation to increment the zone as long as fps exceeds 60fps.
 		if (m_updated && timestep < 0.00833) {
@@ -336,7 +348,7 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		// zone update to update renderables and updateables as the player moves around
 		if (m_player->GetLocation()->GetLocation() != m_currentPosition) {
 			Hex oldcluster = m_map->GetCell(m_currentPosition)->GetCluster()->GetLocation();
-			Hex newcluster = m_player->GetLocation()->GetCluster()->GetLocation();
+			Hex newcluster = m_player->GetLocation()->GetLocation();
 			if (oldcluster != newcluster) {
 				m_map->UpdateZones(newcluster, newcluster - oldcluster, m_activeDistance);
 			}

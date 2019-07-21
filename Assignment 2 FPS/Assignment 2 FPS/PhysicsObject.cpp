@@ -5,13 +5,6 @@
 
 using namespace DirectX;
 
-void PhysicsObject::ApplyForce(XMVECTOR force) {
-	m_acceleration += force;
-}
-void PhysicsObject::ApplyFriction(float strength) {
-	ApplyForce((-m_velocity * strength));
-}
-
 PhysicsObject::PhysicsObject(std::string shaderID, std::string meshID, std::string textureID, XMVECTOR position) : GameObject(position, shaderID, meshID, textureID) {
 	m_velocity = MathsHelper::ZeroVector3();
 	m_acceleration = MathsHelper::ZeroVector3();
@@ -19,9 +12,11 @@ PhysicsObject::PhysicsObject(std::string shaderID, std::string meshID, std::stri
 	m_boundingBox.SetMin(m_position + (m_mesh[0]->GetMin() * m_scale));
 	m_boundingBox.SetMax(m_position + (m_mesh[0]->GetMax() * m_scale));
 	m_health = 1;
+	m_weight = 1;
 }
 
-
+PhysicsObject::~PhysicsObject() {
+}
 
 void PhysicsObject::Update(float timestep) {
 	m_position += m_velocity;
@@ -35,12 +30,23 @@ void PhysicsObject::Update(float timestep) {
 	GameObject::Update(timestep);
 }
 
-PhysicsObject::~PhysicsObject() {
+void PhysicsObject::ApplyForce(XMVECTOR force) {
+	m_acceleration += force;
+}
+
+void PhysicsObject::ApplyFriction(float strength) {
+	ApplyForce((-m_velocity * strength));
 }
 
 void PhysicsObject::DoCollision(PhysicsObject* other, Map* map) {
-	m_position = m_location->GetPosition();
-	m_velocity = MathsHelper::ZeroVector3();
+	
+	XMVECTOR impactVector = m_position - other->GetPosition();
+	float impactRatio = m_weight / (m_weight + other->GetWeight());
+	XMVector3Normalize(impactVector);
+	XMVECTOR impactForceA = XMVector3Dot( m_velocity, -impactVector);
+	XMVECTOR impactForceB = XMVector3Dot( m_velocity, impactVector);
+	impactVector = (impactForceA - impactForceB) * impactRatio;
+	m_velocity += impactVector;
 
 }
 

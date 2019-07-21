@@ -1,14 +1,16 @@
+// to reduce memory overheads the cell class will be reduced to a struct.
+
 /*	Cell.h written by Russell Chidambaranathan 2017.
 *
 *	a class to describe the Cell object.
 *	contains all the methods used by the map to manipulate cells.
 */
 
-
 #ifndef CELL_H
 #define CELL_H
 #include "MathsHelper.h"
 #include "Hex.h"
+
 
 // Cell struct, describes the contents of each cell. location is not required by the cell, so no hex is stored.
 class Cluster;
@@ -29,7 +31,7 @@ public:
 	bool IsSolid() { return m_solid; }
 	// to improve performance the list of updateables and renderables needs to identify items by their pointers.
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }
-	Hex GetLocation();
+	HexLogic::Hex GetLocation();
 	Cluster* GetCluster() { return m_cluster; }
 	DirectX::XMVECTOR GetPosition() { return m_position; }
 	void SetHealth(int hp) { m_health = hp; }
@@ -50,7 +52,7 @@ private:
 	int m_health;
 	int m_resistance;
 	void Initialise();
-	Hex m_location;
+	HexLogic::Hex m_location;
 	// initialise the maps to the entities that exist within the area of this cell.
 	// these use the objects pointer as a key to reduce lookup times to O(1)
 	std::string m_type;

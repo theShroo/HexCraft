@@ -3,11 +3,12 @@
 #include "Map.h"
 
 using namespace DirectX;
+using namespace HexLogic;
 
 Cell::Cell(XMVECTOR position, Cluster* owner) {
 	m_type = "Air";
 	m_position = position;
-	m_location = Hex::VectorToHex(m_position);
+	m_location = VectorToHex(m_position);
 	m_gameObject = new GameObject(position, "Diffuse Texture Fog Shader", "Hexagon", m_type);
 	m_gameObject->Update(0.0f);
 	m_passable = true;
@@ -68,14 +69,13 @@ void Cell::Initialise() {
 }
 
 void Cell::Update(float timestep) {
+	EnableUpdate();
 	if (m_health <= 0) {
 		GameObject* loot = m_owner->AddLoot(m_type, "Diffuse Texture Fog Shader", "Hexagon", m_type, m_position, 1);
 		SetType("Air", true, false);
+		m_owner->RenderCheck(this);
 		CheckRender();
 		loot->Resize(0.1f);
-		for (int i = 0; i < 20; i++) {
-			m_owner->RenderCheck(m_neighbours[i]);
-		}
 	}
 }
 

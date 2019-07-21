@@ -6,7 +6,7 @@
 #include "MathsHelper.h"
 // allows us to use the object itself as a key.
 
-
+class Cluster;
 
 class GameObject
 {
@@ -21,7 +21,7 @@ protected:
 	Shader* m_shader;
 	std::vector<Texture*> m_texture;
 	float m_movespeed;
-	Cell* m_location;
+	Cluster* m_location;
 
 public:
 	GameObject(DirectX::XMVECTOR position, std::string shaderID, std::string meshID, std::string textureID = "Grey");
@@ -51,7 +51,7 @@ public:
 	void SetShader(Shader* shader) { m_shader = shader; }
 	DirectX::XMVECTOR GetPosition() { return m_position; }
 	std::wstring GetPositionString();
-	void SetLocation(Cell* location) { m_location = location; }
+	void SetLocation(Cluster* location) { m_location = location; }
 	// added from base code
 	// getters
 	float GetXRotation() { DirectX::XMFLOAT3 temp; XMStoreFloat3(&temp, m_rotation); return temp.x; }
@@ -60,7 +60,7 @@ public:
 	float GetXScale() { DirectX::XMFLOAT3 temp; XMStoreFloat3(&temp, m_scale); return temp.x; }
 	float GetYScale() { DirectX::XMFLOAT3 temp; XMStoreFloat3(&temp, m_scale); return temp.y; }
 	float GetZScale() { DirectX::XMFLOAT3 temp; XMStoreFloat3(&temp, m_scale); return temp.z; }
-	Cell* GetLocation() { return m_location; }
+	Cluster* GetLocation() { return m_location; }
 	void SetName(std::string name) { m_name = name; }
 	// allows implicit conversion from an object to its key.
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }

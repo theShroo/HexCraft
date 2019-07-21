@@ -11,7 +11,7 @@
 // pair type to store data for addition and removal queues
 struct qpair {
 	GameObject* first;
-	Hex second;
+	HexLogic::Hex second;
 };
 
 
@@ -22,7 +22,7 @@ private:
 	//TODO localise zones into clusters, then replace with a cluster list.
 
 	// tha actual map data is stored in this object, it gets REALLY big (2gb+)
-	std::unordered_map<Hex, Cluster*, hash_Hex> m_map;
+	std::unordered_map<HexLogic::Hex, Cluster*, HexLogic::hash_Hex> m_map;
 	// set an arbitrary cluster size
 	//update and render list
 	std::unordered_map<PointerKey, Cluster*, PointerHash> m_ActiveClusters;
@@ -31,7 +31,7 @@ private:
 	std::vector<qpair> m_removalQueue;
 	std::vector<qpair> m_additionQueue;
 	// directions stored as an index to allow for incrementation of a direction to change facing.
-	std::vector<Hex> m_directions;
+	std::vector<HexLogic::Hex> m_directions;
 	// improved random number generator. rand() was giving weirdly biased results and skewing item spawn chances and spawn positions
 	std::default_random_engine m_generator;
 	std::uniform_int_distribution<int> m_spawnchance;
@@ -42,31 +42,31 @@ private:
 	SimplexNoise* m_simplexNoise;
 
 public:
-	Hex GetDirection(int direction);
-	int GetDirection(Hex direction);
+	HexLogic::Hex GetDirection(int direction);
+	int GetDirection(HexLogic::Hex direction);
 	SimplexNoise* simplexNoise();
 
 	// constructor/destructor
 	Map(int clustersize);
 	~Map();
 
-	void Initialise(Hex position, int distance);
+	void Initialise(HexLogic::Hex position, int distance);
 
 	// accessors
 	
 	// these accessors create the object if none exists;
 	Cell* GetCell(int x, int y, int height);
-	Cell* GetCell(Hex cell);
-	Cluster* GetCluster(Hex cluster);
-	void GetLocalMap(std::vector<Hex> &localMap, Hex center, int range);
-	void GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range);
-	void GetRing(std::vector<Hex> &HexList, Hex center, int radius);
-	void GetLine(std::vector<Hex> &HexList, Hex from, Hex to);
+	Cell* GetCell(HexLogic::Hex cell);
+	Cluster* GetCluster(HexLogic::Hex cluster);
+	void GetLocalMap(std::vector<HexLogic::Hex> &localMap, HexLogic::Hex center, int range);
+	void GetLocalMap2D(std::vector<HexLogic::Hex> &localMap, HexLogic::Hex center, int range);
+	void GetRing(std::vector<HexLogic::Hex> &HexList, HexLogic::Hex center, int radius);
+	void GetLine(std::vector<HexLogic::Hex> &HexList, HexLogic::Hex from, HexLogic::Hex to);
 	int GetCount();
 
 	// these accessors return a nullptr if the object doesn't exist.
-	Cell* CheckCell(Hex cell);
-	Cluster* CheckCluster(Hex cluster);
+	Cell* CheckCell(HexLogic::Hex cell);
+	Cluster* CheckCluster(HexLogic::Hex cluster);
 	std::unordered_map<PointerKey, Cluster*, PointerHash>* GetActiveClusters() { return &m_ActiveClusters; }
 
 
@@ -77,13 +77,13 @@ public:
 	GameObject* AddLoot(std::string name, std::string shader, std::string mesh, std::string texture, DirectX::XMVECTOR location, int qty);
 	
 	// function to check the current update and render list for renderability and updatability.
-	void CleanZones(Hex center);
+	void CleanZones(HexLogic::Hex center);
 	// a function to add the planes in the direction of travel to the render and update lists.
-	void UpdateZones(Hex center, Hex direction, int updateDistance);
+	void UpdateZones(HexLogic::Hex center, HexLogic::Hex direction, int updateDistance);
 	// function to schedule a cell for a render check.
 	void RenderCheck(Cell* cell);  
 	// a function to increase the render and update distance.
-	bool Map::IncrementZone(Hex center, int updateDistance);
+	bool Map::IncrementZone(HexLogic::Hex center, int updateDistance);
 	// update and render functions
 	void Update(float timetep, DirectX::XMVECTOR center);
 	void RenderLocal(DirectX::XMVECTOR location, Direct3D* renderer, Camera* cam);

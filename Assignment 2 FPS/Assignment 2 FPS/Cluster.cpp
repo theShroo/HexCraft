@@ -17,10 +17,12 @@
 #include "FPSPlayer.h"
 #include "Cell.h"
 
+using namespace HexLogic;
 
-Cluster::Cluster(Hex location, Map* Owner, int clustersize)
+
+Cluster::Cluster(Hex bLocation, Map* Owner, int clustersize)
 {
-	m_location = location;
+	m_b_location = bLocation;
 	m_owner = Owner;
 	m_clustersize = clustersize;
 }
@@ -56,9 +58,9 @@ Cluster::~Cluster()
 Cell* Cluster::GetCell(Hex cell) {
 	auto target = m_cluster.find(cell);
 	if (target == m_cluster.end()) {
-		Cell* newCell = new Cell(Hex::HexToVector(cell), this);
+		Cell* newCell = new Cell(HexToVector(cell), this);
 		m_cluster[cell] = newCell;
-		float surface = (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0f / 9.0f, float(cell.y) * 10.0f / 9.0f)) * 30;
+		float surface = 0.0f; // (m_owner->simplexNoise()->fractal(5, float(cell.x) * 10.0f / 9.0f, float(cell.y) * 10.0f / 9.0f)) * 30;
 		if (cell.w < surface) {
 			if (cell.w < surface - 10) {
 				newCell->SetType("Cobblestone", 0, 1);
@@ -67,9 +69,9 @@ Cell* Cluster::GetCell(Hex cell) {
 			}
 			else {
 				
-				/*
+				
 				// Debug code to divide up an area int discrete hexes to shiow cluster ownership.
-				int count = (m_location.x - m_location.y) % 3;
+				int count = (m_b_location.x - m_b_location.y) % 3;
 				if (count < 0) count += 3;
 				switch (count) {
 				case 0:
@@ -89,9 +91,15 @@ Cell* Cluster::GetCell(Hex cell) {
 					newCell->SetHealth(15);
 					break;
 				}
-				*/
-				newCell->SetType("Dirt", 0, 1);
-				newCell->SetHealth(1);
+				Hex s_location = newCell->GetLocation();
+				Hex s_target = bigtosmall(m_b_location, m_clustersize);
+				s_location.w = s_target.w;
+				if (s_location == s_target) {
+					newCell->SetType("Ammo", 0, 1);
+				}
+
+				// newCell->SetType("Dirt", 0, 1);
+				// newCell->SetHealth(1);
 			}
 		}
 		return newCell;
@@ -119,7 +127,7 @@ Cell* Cluster::CheckCell(Hex cell)
 	}
 }
 
-void Cluster::Update(float timestep, std::vector<GameObject*>& entitiesToUpdate, XMVECTOR center)
+void Cluster::Update(float timestep, std::vector<GameObject*>& entitiesToUpdate, DirectX::XMVECTOR center)
 {
 	if (!m_initialised) {
 		m_initialised = 1;
@@ -201,7 +209,7 @@ void Cluster::Clean(Hex center) {
 }
 
 void Cluster::_Initialise() {
-	Hex location = Hex::bigtosmall(m_location, m_clustersize);
+	Hex location = bigtosmall(m_b_location, m_clustersize);
 	std::vector<Hex> plane;
 	for (int i = 0; i <= m_clustersize; i++) {
 		m_owner->GetRing(plane, location, i);
@@ -217,7 +225,7 @@ void Cluster::_Initialise() {
 }
 
 void Cluster::_Deinitialise() {
-	Hex location = Hex::bigtosmall(m_location, m_clustersize);
+	Hex location = bigtosmall(m_b_location, m_clustersize);
 	std::vector<Hex> plane;
 	for (int i = 0; i <= m_clustersize+1; i++) {
 		m_owner->GetRing(plane, location, i);

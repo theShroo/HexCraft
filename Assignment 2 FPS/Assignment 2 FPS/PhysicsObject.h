@@ -10,6 +10,7 @@ class PhysicsObject : public GameObject {
 protected:     
 	DirectX::XMVECTOR m_velocity;  
 	DirectX::XMVECTOR m_acceleration;
+	float m_weight;
 	int m_health;
 	CBoundingBox m_boundingBox;
 
@@ -36,6 +37,7 @@ public:
 	virtual void DoCollision(PhysicsObject* other, Map* map);
 	void Damage(int damageDone) { m_health -= damageDone; }
 	int GetHealth() { return m_health; }
+	float GetWeight() { return m_weight; }
 	~PhysicsObject();
 };
 

@@ -10,8 +10,12 @@
 *	very little original code remains but the general layout was retained
 */
 
+#pragma once
+
 #ifndef GAME_H
 #define GAME_H
+
+
 
 #include "MathsHelper.h"
 #include "Map.h"
@@ -19,6 +23,7 @@
 #include "FPSPlayer.h"
 #include "StateMachine.h"
 
+// enumerate game states
 enum GameState {
 	MainMenu = 1,
 	Active,
@@ -27,6 +32,19 @@ enum GameState {
 	GameOver,
 	Victory
 };
+
+// enumerate debug states
+// we are being sneaky with out states, and this is actually an array of bits, 
+// bit 1 = debug overlay
+// bit 2 = movement disassociation
+
+enum DebugState{
+	NoDebug = 0,
+	OverlayOnly,
+	MovementOnly,
+	Both
+};
+
 
 class Game
 {
@@ -38,11 +56,6 @@ private:
 	// Gameobjects
 	FPSPlayer* m_player;
 	Map* m_map;
-
-	// Wide strings use more than 8 bits per character so they can capture more symbols
-	// Windows loves them and as such so does Direct3D and its text helpers
-	std::wstring m_highScoreText;
-	float m_score;
 
 	// inventory management and display variables, to store current index of the inventory, and to store descriptions for renderering the names of the equipped items.
 	unsigned m_inventoryIndex;
@@ -57,11 +70,11 @@ private:
 
 	void RefreshUI();
 	// debug stuff
-	bool m_debug;
+	DebugState m_debug;
 	SpriteManager* m_debugOverlay;
 	std::vector<std::wstring*> m_debugstrings;
 	// performance optimisation data for performance update 1.
-	Hex m_currentPosition;
+	HexLogic::Hex m_currentPosition;
 	std::function<void(float a)> Game::ActiveUpdateFunction();
 	unsigned m_activeDistance;
 	bool m_updated;

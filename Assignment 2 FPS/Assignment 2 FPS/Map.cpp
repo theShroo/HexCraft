@@ -7,7 +7,7 @@
 
 
 using namespace DirectX;
-
+using namespace HexLogic;
 
 
 Map::Map(int clustersize) {
@@ -47,7 +47,7 @@ std::unordered_map<Hex, Cluster*, hash_Hex>::iterator terminator;
 
 Cell* Map::GetCell(Hex cell) {
 	// for the target cell we need to locate its cluster 
-	Hex clusterLoc = Hex::smalltobig(cell, m_clusterSize);
+	Hex clusterLoc = smalltobig(cell, m_clusterSize);
 	return GetCluster(clusterLoc)->GetCell(cell);
 }
 
@@ -72,7 +72,7 @@ int Map::GetCount() {
 Cell* Map::CheckCell(Hex cell)
 {
 	// for the target cell we need to locate its cluster 
-	Hex clusterLoc = Hex::smalltobig(cell, m_clusterSize);
+	Hex clusterLoc = smalltobig(cell, m_clusterSize);
 	Cluster* cluster = CheckCluster(clusterLoc);
 	if (cluster) { return cluster->CheckCell(cell); }
 	else { return nullptr; }
@@ -94,7 +94,7 @@ Cluster* Map::CheckCluster(Hex cluster)
 void Map::Initialise(Hex position, int distance)
 {
 	std::vector<Hex> zone;
-	GetLocalMap(zone, Hex::smalltobig(position, m_clusterSize), distance);
+	GetLocalMap(zone, smalltobig(position, m_clusterSize), distance);
 	for (int i = 0; i < zone.size(); i++) {
 		Cluster* cluster = GetCluster(zone[i]);
 		m_ActiveClusters[*cluster] = cluster;
@@ -147,7 +147,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 	
 	for (Cluster_Update_iter = m_ActiveClusters.begin(); Cluster_Update_iter != m_ActiveClusters.end(); Cluster_Update_iter++) {	// for all Clusters in the update area
 		Cluster* currentCluster = Cluster_Update_iter->second;
-		//	// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update.
+		// Cells MUST be updated before any calls can be made to them, they have data that must be initialised before it can be used that is set on first update
 		currentCluster->Update(timestep, entitiesToUpdate, center);
 
 	}
@@ -162,7 +162,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 				// do gravity
 				active->ApplyForce(MathsHelper::GetXMVECTOR3(0, -2.0f * timestep, 0));
 
-				Cell* cell = active->GetLocation();
+				Cell* cell = GetCell(VectorToHex(active->GetPosition()));
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
 				}
@@ -172,7 +172,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
 				}
 				//check for local collisions with other active entities TODO: update this function to check neighbouring clusters for colisions with this object.
-				std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = active->GetLocation()->GetCluster()->GetEntities();
+				std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = active->GetLocation()->GetEntities();
 				if (potentials->size() > 0) {
 					for (iter_B = potentials->begin(); iter_B != potentials->end(); iter_B++) {
 						GameObject* potential = iter_B->second;
@@ -197,7 +197,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 				XMVECTOR target = center;
 				target.m128_f32[1] += 1.0f;
 				loot->ApplyForce(DirectX::XMVector3Normalize(target - loot->GetPosition()) * timestep * 0.05f);
-					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = loot->GetLocation()->GetCluster()->GetEntities();
+					std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = loot->GetLocation()->GetEntities();
 					if (potentials->size() > 0) {
 						for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 							GameObject* potential = iter_B->second;
@@ -217,7 +217,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		if (entity) {
 			Bullets* bullet = entity->GetBullet();
 			if (bullet) {
-				Cell* location = bullet->GetLocation();
+				Cell* location = GetCell(VectorToHex(bullet->GetPosition()));
 				if (!location->IsPassable()) {
 					bullet->DoCollision(location, this);		// bullets remove themselves upon coillision.
 					entity = 0;
@@ -226,7 +226,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 
 					bool ingun = false;
 
-						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = bullet->GetLocation()->GetCluster()->GetEntities();
+						std::unordered_map<PointerKey, GameObject*, PointerHash>* potentials = bullet->GetLocation()->GetEntities();
 						if (potentials->size() > 0) {
 							for (iter_B = potentials->begin(); iter_B != potentials->end() && entity; iter_B++) {
 								GameObject* potential = iter_B->second;
@@ -264,50 +264,53 @@ void Map::Update(float timestep, XMVECTOR center) {
 		// then update all entites that remain to accept an update.
 		
 		if (entity) {
+			Hex s_oldHex =VectorToHex(entity->GetPosition());
+			Hex b_oldhex = smalltobig(s_oldHex, m_clusterSize);
 			entity->Update(timestep);	
 			// update them.
-			Hex newHex = Hex::VectorToHex(entity->GetPosition());
-			if (newHex != entity->GetLocation()->GetLocation()) {
+			Hex s_newHex =VectorToHex(entity->GetPosition());
+			Hex b_newHex = smalltobig(s_newHex, m_clusterSize);
+			if (s_newHex != s_oldHex) {
 				if (entity->GetPlayer()) {
-					Cell* cell = GetCell(newHex);
+					Cell* cell = GetCell(s_newHex);
 					if (cell->IsPassable() && cell->GetNeigbours()[10]->IsPassable()) {  // cell->neighbours()[10] is the Cell above cell.
-						movedZone.push_back(entity);
 					}
 					else if (cell->GetNeigbours()[10]->IsPassable() && cell->GetNeigbours()[10]->GetNeigbours()[10]->IsPassable()) { // nest neighbours 10 to get the cell two above the current. (still faster than hash table lookup)
 						entity->Move(MathsHelper::GetXMVECTOR3(0, 1, 0));
-						movedZone.push_back(entity);
 					}
 					else {
-						XMVECTOR Hex = entity->GetLocation()->GetPosition();
-						entity->setPosition(Hex + XMVector3Normalize(entity->GetPosition() - Hex) * 0.65f);
+						XMVECTOR hex = GetCell(s_oldHex)->GetPosition();
+						entity->setPosition(hex + XMVector3Normalize(entity->GetPosition() - hex) * 0.65f);
+						b_newHex = b_oldhex;
 					}
 				}
-				else {
-					movedZone.push_back(entity);													// flag them for cell reHex.
+				if (b_oldhex !=b_newHex) {
+					movedZone.push_back(entity);													// flag them for cluster reHex.
 				}
 			}
 		}
 	}
 
+	// TODO update this function to reflect that entities belong to a cluster not a cell.
 	// move entites location flags
 	for (unsigned i = 0; i < movedZone.size(); i++) {												// move all flagged objects to their new cells
 		GameObject* entity = movedZone[i];
-		Cluster* cluster =entity->GetLocation()->GetCluster();
+		Cluster* cluster =entity->GetLocation();
 		cluster->GetEntities()->erase(entity->operator PointerKey());	// remove the object from its old cell.
-		Hex hex = Hex::VectorToHex(entity->GetPosition());
-		Cell* cell = GetCell(hex);
+		Hex s_hex = VectorToHex(entity->GetPosition());
+		Cell* cell = GetCell(s_hex);
 		cluster = cell->GetCluster();
 		cluster->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
-		entity->SetLocation(cell);													// update the objects location.							
+		entity->SetLocation(cluster);													// update the objects location.							
 	}		
 	// add new items to the map
 	for (unsigned i = 0; i < m_additionQueue.size(); i++) {											// add all items queued for inclusion.
 
 		Hex hex = m_additionQueue[i].second;
-		Cell* cell = GetCell(hex);
-		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetCluster()->GetEntities();
+		Cluster* cluster = GetCell(hex)->GetCluster();
+		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cluster->GetEntities();
 		entitylist->operator[](m_additionQueue[i].first->operator PointerKey()) = m_additionQueue[i].first;		// add the object to its new cell.
-		m_additionQueue[i].first->SetLocation(cell);
+		m_additionQueue[i].first->SetLocation(cluster);
 	}
 	m_additionQueue.clear();
 	// remove deleted items from the map (basic garbage collection)
@@ -326,7 +329,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 // the map is an object container holding renderable objects, so we need a special iterator render only the correct items.
 void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam) {
 	// check changed cells for rendering
-	Hex here = Hex::VectorToHex(location);
+	Hex here = VectorToHex(location);
 	for (int i = 0; i < m_renderCheckQueue.size(); i++) {
 		Cell* cell = m_renderCheckQueue[i];
 		if (cell) {
@@ -401,16 +404,16 @@ void Map::GetRing(std::vector<Hex> &HexList, Hex center, int radius) {
 void Map::GetLine(std::vector<Hex> &HexList, Hex a, Hex b) {
 	int samples = a.distance(b) + 1;
 	for (int i = 0; i < samples; i++) {
-		HexList.push_back(Hex::Float4ToHex(Hex::LerpHex(a, b, (1.0f / samples)*i)));
+		HexList.push_back(Float4ToHex(LerpHex(a, b, (1.0f / samples)*i)));
 	}
 }
 
 void Map::AddObject(GameObject* object) {
-	m_additionQueue.push_back({ object, Hex::VectorToHex(object->GetPosition()) });
+	m_additionQueue.push_back({ object, VectorToHex(object->GetPosition()) });
 }
 
 void  Map::RemoveObject(GameObject* object) {
-	m_removalQueue.push_back({ object, Hex::VectorToHex(object->GetPosition()) });															// remove the object from its cell.
+	m_removalQueue.push_back({ object, VectorToHex(object->GetPosition()) });															// remove the object from its cell.
 }
 
 // method for pathing ai to a given location, provides a list of accessable hexes from a given start point. not yet implemented
