@@ -124,7 +124,7 @@ void Game::LoadUI()
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[1], XMFLOAT2(20, 230), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[2], XMFLOAT2(20, 260), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[3], XMFLOAT2(20, 290), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
-	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[3], XMFLOAT2(20, 320), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
+	m_debugOverlay->MakeSpriteFont("Ariel 18", m_debugstrings[4], XMFLOAT2(20, 320), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
 
 	// initialise the spriteManagers.
 	std::pair<int, int> size = m_input->GetWindowSize();
@@ -168,45 +168,13 @@ void Game::LoadUI()
 
 	// Inventory
 	m_stateMachine->RegisterState(Inventory, 
-		// enter inventory screen lambda
+		// inventory entry function
 		[this]() {
-		m_inventoryIndex = 0;
-			for (unsigned i = 0; i < 12; i++) {
-				m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(MathsHelper::ConvertString(m_player->GetEquipmentDescription(i).c_str()));
-			}
-		},
-		// inventory update lambda
-		[this](float timestep) {
-			if (m_input->GetKeyDown(VK_ESCAPE)) {
-				m_stateMachine->ChangeState(Active);
-			}
-			if (m_input->GetKeyDown(VK_UP)) {
-				if (m_inventoryIndex < 3) {
-					m_inventoryIndex = 0;
-				}
-			}
-			if (m_input->GetKeyDown(VK_DOWN)) {
-				if (m_inventoryIndex < m_player->GetInventory()->size() - 39) {
-					m_inventoryIndex += 3;
-				}
-			}
-			std::unordered_map <PointerKey, std::pair<Equipment*, int>, PointerHash>::iterator iter;
-			iter = m_player->GetInventory()->begin();
-			advance(iter, m_inventoryIndex);
-			for (int i = 12; i < 51; i++) {
-				if (iter != m_player->GetInventory()->end()) {
-					std::string desc = iter->second.first->GetName().c_str();
-					if (iter->second.second > 1) {
-						desc += " (" + std::to_string(iter->second.second) + ")";
-					}
-					m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(MathsHelper::ConvertString(desc.c_str()));
-					iter++;
-				}
-				else {
-					m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(L"Empty");
-				}
-			}
-		}, 0, 0);
+			m_inventoryIndex = 0;
+		for (unsigned i = 0; i < 12; i++) {
+			m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(MathsHelper::ConvertString(m_player->GetEquipmentDescription(i).c_str()));
+		}
+		}, InventoryUpdateFunction() , 0, 0);
 	// backdrop for inventory screen
 	m_stateMachine->Spritemanager(Inventory)->MakeSprite(Texture::GetTexture("Inventory"), XMFLOAT2((size.first - 1024.0f) / 2.0f, (size.second - 768.0f) / 2.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 0.8f), XMFLOAT2(1024, 768));
 	m_stateMachine->Spritemanager(Inventory)->MakeSpriteFont("Ariel 23", L"Inventory", XMFLOAT2((size.first - 200.0f) / 2.0f, 100.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), 0, XMFLOAT2(0, 0));
@@ -243,13 +211,12 @@ void Game::RefreshUI()
 	std::wstringstream ss;
 	ss << L"Clusters rendered: " << float(m_map->GetActiveClusters()->size());
 	*m_debugstrings[0] = ss.str();
-
-	*m_debugstrings[1] = m_player->GetPositionString();
+	*m_debugstrings[1] = L"Cells loaded. Total: " + std::to_wstring(m_map->GetCount()) + L", this cluster: " + std::to_wstring(m_map->GetCell(m_currentPosition)->GetCluster()->GetCount());
+	*m_debugstrings[2] = m_player->GetPositionString();
 	Hex location = VectorToHex(m_player->GetPosition());
-	*m_debugstrings[2] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y) + L", Z: " + std::to_wstring(location.z) + L", W: " + std::to_wstring(location.w);
+	*m_debugstrings[3] = L"Hex location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y) + L", Z: " + std::to_wstring(location.z) + L", W: " + std::to_wstring(location.w);
 	location = smalltobig(m_currentPosition, m_clustersize);
-	*m_debugstrings[3] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
-	*m_debugstrings[4] = L"Cells loaded. Total: " + std::to_wstring(m_map->GetCount()) + L", this cluster: " + std::to_wstring(m_map->GetCell(m_currentPosition)->GetCluster()->GetCount());
+	*m_debugstrings[4] = L"physical Cluster location: X: " + std::to_wstring(location.x) + L", Y: " + std::to_wstring(location.y);
 
 
 	if (m_input->GetKeyDown(VK_F3)) {
@@ -269,23 +236,20 @@ void Game::RefreshUI()
 
 void Game::InitGameWorld()
 {
-	// create the map
-	m_map = new Map(m_clustersize);
+	Equipment::Initialise();
 
+	// create the player
+	m_player = new FPSPlayer(MathsHelper::GetXMVECTOR3(0, 0, 0), "Diffuse Texture Fog Shader", "Enemy", "Player Light Red", m_input);
+	// create the map
+	m_map = new Map(m_clustersize, VectorToHex(m_player->GetPosition()), m_activeDistance );
+	// add the player to the map
+	m_currentPosition = VectorToHex(m_player->GetPosition());
+	m_map->AddObject(m_player);
 	// bullets and equipment need initialising before all their functionality performs properly.
 	Bullets::Initialise(m_map);
-	Equipment::Initialise();
-	// add the player
-	m_player = new FPSPlayer(MathsHelper::GetXMVECTOR3(0, 0, 0), "Diffuse Texture Fog Shader", "Enemy", "Player Light Red", m_input);
-	// add the player to the map
-	m_map->AddObject(m_player);
-	m_currentPosition = Hex{ 0,0,0,0 };
-
-	m_map->Initialise(m_currentPosition, m_activeDistance);
-	Hex hex = { 0, 0,0,16 };
 	m_map->Update(0, m_player->GetPosition());
-	m_map->GetCell(Hex(hex));
 }
+
 void Game::Update(float timestep)
 {
 	m_input->BeginUpdate();
@@ -352,7 +316,7 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 			if (oldcluster != newcluster) {
 				m_map->UpdateZones(newcluster, newcluster - oldcluster, m_activeDistance);
 			}
-			m_currentPosition = m_player->GetLocation()->GetLocation();
+			m_currentPosition = VectorToHex(m_player->GetPosition());
 			m_updated = true;
 		}
 		else {
@@ -385,6 +349,43 @@ std::function<void(float a)> Game::ActiveUpdateFunction() {
 		GetWindowRect(m_input->GetWindow(), &window);
 		SetCursorPos((window.left + window.right) / 2, (window.top + window.bottom) / 2);
 
+	};
+
+}
+
+std::function<void(float a)> Game::InventoryUpdateFunction() {
+
+	// enter inventory screen lambda
+	return [this](float timestep) {
+		if (m_input->GetKeyDown(VK_ESCAPE)) {
+			m_stateMachine->ChangeState(Active);
+		}
+		if (m_input->GetKeyDown(VK_UP)) {
+			if (m_inventoryIndex < 3) {
+				m_inventoryIndex = 0;
+			}
+		}
+		if (m_input->GetKeyDown(VK_DOWN)) {
+			if (m_inventoryIndex < m_player->GetInventory()->size() - 39) {
+				m_inventoryIndex += 3;
+			}
+		}
+		std::unordered_map <PointerKey, std::pair<Equipment*, int>, PointerHash>::iterator iter;
+		iter = m_player->GetInventory()->begin();
+		advance(iter, m_inventoryIndex);
+		for (int i = 12; i < 51; i++) {
+			if (iter != m_player->GetInventory()->end()) {
+				std::string desc = iter->second.first->GetName().c_str();
+				if (iter->second.second > 1) {
+					desc += " (" + std::to_string(iter->second.second) + ")";
+				}
+				m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(MathsHelper::ConvertString(desc.c_str()));
+				iter++;
+			}
+			else {
+				m_stateMachine->Spritemanager(Inventory)->GetButton(i)->SetButtonText(L"Empty");
+			}
+		}
 	};
 
 }

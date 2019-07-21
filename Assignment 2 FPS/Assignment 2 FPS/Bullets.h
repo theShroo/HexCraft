@@ -13,7 +13,7 @@ public:
 	static void Initialise(Map* map);
 	static Map* m_currentMap;
 	virtual void DoCollision(PhysicsObject* other, Map* map);
-	virtual void DoCollision(Cell* other, Map* map);
+	virtual void DoCollision(CellPtr other, Map* map);
 	virtual void Update(float timeStep);
 	virtual PhysicsObject* GetInteractive() { return 0; }
 	virtual Player* GetActive() { return 0; }

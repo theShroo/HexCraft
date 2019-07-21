@@ -10,7 +10,7 @@ using namespace DirectX;
 using namespace HexLogic;
 
 
-Map::Map(int clustersize) {
+Map::Map(int clustersize, Hex mapCenter, int activeDistance) {
 
 	// initialise the direction translator.
 	m_directions.push_back(Hex{ +1, -1, 0, 0 });
@@ -24,6 +24,13 @@ Map::Map(int clustersize) {
 	m_spawnchance = std::uniform_int_distribution<int> (1, 1000000);
 	m_simplexNoise = new SimplexNoise(0.003f, 200.0f);
 	m_clusterSize = clustersize;
+	// initialise the map elements
+	std::vector<Hex> zone;
+	GetLocalMap(zone, smalltobig(mapCenter, m_clusterSize), activeDistance);
+	for (int i = 0; i < zone.size(); i++) {
+		Cluster* cluster = GetCluster(zone[i]);
+		m_ActiveClusters[*cluster] = cluster;
+	}
 }
 
 
@@ -42,16 +49,16 @@ std::unordered_map<Hex, Cluster*, hash_Hex>::iterator terminator;
 }
 
 
-// Get Cell function updated in the map class, it now passes a large chunk of logic into the cluster class, 
-// and breaks the map up into predefined 'chunks' to allow for smooth loading and unloading of cell groups
+CellPtr Map::GetCell(int x, int y, int height) {
+	return GetCell(Hex{ x,y,-x - y, height });
+}
 
-Cell* Map::GetCell(Hex cell) {
+CellPtr Map::GetCell(Hex cell) {
 	// for the target cell we need to locate its cluster 
 	Hex clusterLoc = smalltobig(cell, m_clusterSize);
 	return GetCluster(clusterLoc)->GetCell(cell);
 }
 
-// cluster fetch function
 Cluster* Map::GetCluster(Hex cluster)
 {
 	if (m_map.count(cluster) < 1) {
@@ -67,46 +74,6 @@ int Map::GetCount() {
 	}
 	return total;
 }
-
-// sterile fetcher
-Cell* Map::CheckCell(Hex cell)
-{
-	// for the target cell we need to locate its cluster 
-	Hex clusterLoc = smalltobig(cell, m_clusterSize);
-	Cluster* cluster = CheckCluster(clusterLoc);
-	if (cluster) { return cluster->CheckCell(cell); }
-	else { return nullptr; }
-	
-
-}
-
-
-// sterile fetcher
-Cluster* Map::CheckCluster(Hex cluster)
-{
-	auto target = m_map.find(cluster);
-	if (target != m_map.end()) {
-		return target->second;
-	}
-	else return nullptr;
-}
-
-void Map::Initialise(Hex position, int distance)
-{
-	std::vector<Hex> zone;
-	GetLocalMap(zone, smalltobig(position, m_clusterSize), distance);
-	for (int i = 0; i < zone.size(); i++) {
-		Cluster* cluster = GetCluster(zone[i]);
-		m_ActiveClusters[*cluster] = cluster;
-	}
-}
-
-
-// add an overload to accept coordinates.
-Cell* Map::GetCell(int x, int y, int height) {
-	return GetCell(Hex{ x,y,-x - y, height });
-}
-
 
 // function to identify an area around a target cell, primarily for rendering and updating.
 void Map::GetLocalMap(std::vector<Hex> &localMap, Hex center, int range) {
@@ -129,10 +96,111 @@ void Map::GetLocalMap2D(std::vector<Hex> &localMap, Hex center, int range) {
 	}
 }
 
+// method to get a ring of hexes
+void Map::GetRing(std::vector<Hex>& HexList, Hex center, int radius) {
+
+	if (radius == 0) {
+		HexList.push_back(center);
+	}
+	else {
+		Hex cube = center + m_directions[4] * radius;
+		for (int i = 0; i < 6; i++) {
+			for (int j = 0; j < radius; j++) {
+				HexList.push_back(cube);
+				cube = cube + GetDirection(i);
+			}
+		}
+	}
+}
+
+// method to get all hexes in a line.
+void Map::GetLine(std::vector<Hex>& HexList, Hex a, Hex b) {
+	int samples = a.distance(b) + 1;
+	for (int i = 0; i < samples; i++) {
+		HexList.push_back(Float4ToHex(LerpHex(a, b, (1.0f / samples) * i)));
+	}
+}
+
+void Map::AddObject(GameObject* object) {
+	m_additionQueue.push_back({ object, VectorToHex(object->GetPosition()) });
+}
+
+void  Map::RemoveObject(GameObject* object) {
+	m_removalQueue.push_back({ object, VectorToHex(object->GetPosition()) });															// remove the object from its cell.
+}
+
+// method for pathing ai to a given location, provides a list of accessable hexes from a given start point. not yet implemented
+
+
+GameObject* Map::AddAI(int type, Player* target, float range) {
+
+	std::uniform_real_distribution<float> location(-30.0f, 30.0f);
+	AIPlayer* ai = new AIPlayer(MathsHelper::GetXMVECTOR3(location(m_generator), 0.0f, location(m_generator)), "Diffuse Texture Fog Shader", "Enemy", "Player Light Red", type);
+	ai->SetTarget(target);
+	AddObject(ai);
+	return ai;
+}
+
+GameObject* Map::AddLoot(std::string name, std::string shader, std::string mesh, std::string texture, DirectX::XMVECTOR location, int qty) {
+	GameObject* loot = new Loot(shader, mesh, texture, location, name, qty);
+	AddObject(loot);
+	return loot;
+}
+
+void Map::CleanZones(Hex center) {
+	// if a cell has no entities, dont update it.
+	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
+		i->second->Clean(center);
+	}
+}
+
+void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
+	std::vector<Hex> plane;
+	Cluster* cluster;
+	GetLocalMap2D(plane, center, updateDistance);
+	for (int i = 0; i < plane.size(); i++) {
+		for (int j = -updateDistance; j <= updateDistance; j++) {
+			Hex currentcluster = plane[i];
+			currentcluster.w = center.w + j;
+			cluster = GetCluster(currentcluster);
+			if (m_ActiveClusters.count(*cluster) == 0) {
+				cluster->Clean(center);
+			}
+			m_ActiveClusters[*cluster] = cluster;
+		}
+	}
+
+
+	// disable Active clusters that are out of range
+	std::vector<Cluster*> outsideDistance;
+	//check the distance from the center to each updateable to determine if its out of range (this is faster than checking an entire plane)
+	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
+		if (i->second->GetLocation().distance(center) > updateDistance + 1) {
+			outsideDistance.push_back(i->second);
+		}
+	}
+	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
+		m_ActiveClusters.erase(*outsideDistance[i]);
+	}
+	outsideDistance.clear();
+
+	// delete clusters from the map that are even further out of range.
+	for (auto i = m_map.begin(); i != m_map.end(); i++) {
+		if (i->second->GetLocation().distance(center) > updateDistance + 3) {
+			outsideDistance.push_back(i->second);
+		}
+	}
+	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
+		m_map.erase(outsideDistance[i]->GetLocation());
+		delete outsideDistance[i];
+	}
+	outsideDistance.clear();
+}
+
 
 // an update function optimised to only update entites within the local zone.
 // this function also checks for collisions in an optimised area to reduce collision cost.
-// to maintain this optimisation each cell keeps a list of entities contained within, and
+// to maintain this optimisation each cluster keeps a list of entities contained within, and
 // these lists must be updated AFTER all objects have been updated, AND the check has been 
 // made for colisions. this update also checks for expired entities and removes them, and 
 // performs any spawn functions that are queued.
@@ -162,11 +230,11 @@ void Map::Update(float timestep, XMVECTOR center) {
 				// do gravity
 				active->ApplyForce(MathsHelper::GetXMVECTOR3(0, -2.0f * timestep, 0));
 
-				Cell* cell = GetCell(VectorToHex(active->GetPosition()));
+				CellPtr cell = GetCell(VectorToHex(active->GetPosition()));
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
 				}
-				cell = cell->GetNeigbours()[9];  // look up cell by index in neighbours list, its MUCH faster than any other method. (index 9 is below)
+				cell = cell->operator[](9);  // look up cell by index in neighbours list, its MUCH faster than any other method. (index 9 is below)
 				// new standing code, much more efficient than performing collisions on every hex in the zone.
 				if (!cell->IsPassable()) {
 					active->DoStanding(cell->GetLocation().w + 1.0f, this);
@@ -217,7 +285,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		if (entity) {
 			Bullets* bullet = entity->GetBullet();
 			if (bullet) {
-				Cell* location = GetCell(VectorToHex(bullet->GetPosition()));
+				CellPtr location = GetCell(VectorToHex(bullet->GetPosition()));
 				if (!location->IsPassable()) {
 					bullet->DoCollision(location, this);		// bullets remove themselves upon coillision.
 					entity = 0;
@@ -248,7 +316,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 						}
 					if (entity) {
 						if (bullet->m_ttl < 0) {								// if the bullet has expired and it hasnt hit anything.
-							this->RemoveObject(bullet);
+							this->RemoveObject(entity);
 							entity = 0;
 						}
 						else if (!ingun) {
@@ -272,10 +340,10 @@ void Map::Update(float timestep, XMVECTOR center) {
 			Hex b_newHex = smalltobig(s_newHex, m_clusterSize);
 			if (s_newHex != s_oldHex) {
 				if (entity->GetPlayer()) {
-					Cell* cell = GetCell(s_newHex);
-					if (cell->IsPassable() && cell->GetNeigbours()[10]->IsPassable()) {  // cell->neighbours()[10] is the Cell above cell.
+					CellPtr cell = GetCell(s_newHex);
+					if (cell->IsPassable() && cell->GetNeigbours()[10].lock()->IsPassable()) {  // cell->neighbours()[10] is the Cell above cell.
 					}
-					else if (cell->GetNeigbours()[10]->IsPassable() && cell->GetNeigbours()[10]->GetNeigbours()[10]->IsPassable()) { // nest neighbours 10 to get the cell two above the current. (still faster than hash table lookup)
+					else if (cell->operator[](10)->IsPassable() && cell->operator[](10)->operator[](10)->IsPassable()) { // nest neighbours 10 to get the cell two above the current. (still faster than hash table lookup)
 						entity->Move(MathsHelper::GetXMVECTOR3(0, 1, 0));
 					}
 					else {
@@ -298,7 +366,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 		Cluster* cluster =entity->GetLocation();
 		cluster->GetEntities()->erase(entity->operator PointerKey());	// remove the object from its old cell.
 		Hex s_hex = VectorToHex(entity->GetPosition());
-		Cell* cell = GetCell(s_hex);
+		CellPtr cell = GetCell(s_hex);
 		cluster = cell->GetCluster();
 		cluster->GetEntities()->insert({ entity->operator PointerKey(), entity });		// add the object to its new cell.
 		entity->SetLocation(cluster);													// update the objects location.							
@@ -316,7 +384,7 @@ void Map::Update(float timestep, XMVECTOR center) {
 	// remove deleted items from the map (basic garbage collection)
 	for (unsigned i = 0; i < m_removalQueue.size(); i++) {
 		Hex hex = m_removalQueue[i].second;
-		Cell* cell= GetCell(hex);
+		CellPtr cell= GetCell(hex);
 		std::unordered_map<PointerKey, GameObject*, PointerHash>* entitylist = cell->GetCluster()->GetEntities();
 		entitylist->erase(m_removalQueue[i].first->operator PointerKey());
 		delete m_removalQueue[i].first;
@@ -331,9 +399,14 @@ void Map::RenderLocal(XMVECTOR location, Direct3D* renderer, Camera* cam) {
 	// check changed cells for rendering
 	Hex here = VectorToHex(location);
 	for (int i = 0; i < m_renderCheckQueue.size(); i++) {
-		Cell* cell = m_renderCheckQueue[i];
+		CellPtr cell = m_renderCheckQueue[i];
 		if (cell) {
-			cell->CheckRender();
+			if (cell->CheckRender()) {
+				cell->GetCluster()->EnableRender(cell);
+			}
+			else {
+				cell->GetCluster()->DisableRender(cell);
+			}
 		}
 	}
 	m_renderCheckQueue.clear();
@@ -383,114 +456,16 @@ int Map::GetDirection(Hex direction) {
 	return -1;
 }
 
-// method to get a ring of hexes
-void Map::GetRing(std::vector<Hex> &HexList, Hex center, int radius) {
 
-	if (radius == 0) {
-		HexList.push_back(center);
-	}
-	else {
-		Hex cube = center + m_directions[4] * radius;
-		for (int i = 0; i < 6; i++) {
-			for (int j = 0; j < radius; j++) {
-				HexList.push_back(cube);
-				cube = cube + GetDirection(i);
-			}
-		}
-	}
-}
-
-// method to get all hexes in a line.
-void Map::GetLine(std::vector<Hex> &HexList, Hex a, Hex b) {
-	int samples = a.distance(b) + 1;
-	for (int i = 0; i < samples; i++) {
-		HexList.push_back(Float4ToHex(LerpHex(a, b, (1.0f / samples)*i)));
-	}
-}
-
-void Map::AddObject(GameObject* object) {
-	m_additionQueue.push_back({ object, VectorToHex(object->GetPosition()) });
-}
-
-void  Map::RemoveObject(GameObject* object) {
-	m_removalQueue.push_back({ object, VectorToHex(object->GetPosition()) });															// remove the object from its cell.
-}
-
-// method for pathing ai to a given location, provides a list of accessable hexes from a given start point. not yet implemented
-
-
-GameObject* Map::AddAI(int type, Player* target, float range) {
-
-	std::uniform_real_distribution<float> location(-30.0f, 30.0f);
-	AIPlayer* ai = new AIPlayer(MathsHelper::GetXMVECTOR3(location(m_generator), 0.0f, location(m_generator)), "Diffuse Texture Fog Shader", "Enemy", "Player Light Red", type);
-	ai->SetTarget(target);
-	AddObject(ai);
-	return ai;
-}
-
-GameObject* Map::AddLoot(std::string name, std::string shader, std::string mesh, std::string texture, DirectX::XMVECTOR location, int qty) {
-	GameObject* loot = new Loot(shader, mesh, texture, location, name, qty);
-	AddObject(loot);
-	return loot;
-}
 // add a cells neigbours to a list to be checked next render cycle.
-void Map::RenderCheck(Cell* cell) {
+void Map::RenderCheck(Hex location) {
+	CellPtr target = GetCell(location);
+	m_renderCheckQueue.push_back(target);
 	for (int i = 0; i < 20; i++) {
-		m_renderCheckQueue.push_back(cell->GetNeigbours()[i]);
+		m_renderCheckQueue.push_back(target->operator[](i));
 	}
 }
 
-
-void Map::CleanZones(Hex center) {
-	// if a cell has no entities, dont update it.
-	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
-		i->second->Clean(center);
-	}
-}
-
-
-void Map::UpdateZones(Hex center, Hex h_direction, int updateDistance) {
-	std::vector<Hex> plane;
-	Cluster* cluster;
-	GetLocalMap2D(plane, center, updateDistance);
-	for (int i = 0; i < plane.size(); i++) {
-		for (int j = -updateDistance; j <= updateDistance; j++) {
-			Hex currentcluster = plane[i];
-			currentcluster.w = center.w + j;
-			cluster = GetCluster(currentcluster);
-			if (m_ActiveClusters.count(*cluster) == 0) {
-				cluster->Clean(center);
-			}
-			m_ActiveClusters[*cluster] = cluster;
-		}
-	}
-
-
-	// disable Active clusters that are out of range
-	std::vector<Cluster*> outsideDistance;
-	//check the distance from the center to each updateable to determine if its out of range (this is faster than checking an entire plane)
-	for (auto i = m_ActiveClusters.begin(); i != m_ActiveClusters.end(); i++) {
-		if (i->second->GetLocation().distance(center) > updateDistance + 1) {
-			outsideDistance.push_back(i->second);
-		}
-	}
-	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
-		m_ActiveClusters.erase(*outsideDistance[i]);
-	}
-	outsideDistance.clear();
-
-	// delete clusters from the map that are even further out of range.
-	for (auto i = m_map.begin(); i != m_map.end(); i++) {
-		if (i->second->GetLocation().distance(center) > updateDistance + 3) {
-			outsideDistance.push_back(i->second);
-		}
-	}
-	for (unsigned int i = 0; i < outsideDistance.size(); i++) {
-		m_map.erase(outsideDistance[i]->GetLocation());
-		delete outsideDistance[i];
-	}
-	outsideDistance.clear();
-}
 
 
 bool Map::IncrementZone(Hex center, int updateDistance) {

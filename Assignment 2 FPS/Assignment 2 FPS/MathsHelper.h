@@ -11,7 +11,7 @@
 #include <vector>
 #include <sstream>
 #include <functional>
-
+#include <memory>
 
 #define PI 3.14159f
 #define ToRadians(degree) ((degree) * (PI / 180.0f))
@@ -48,8 +48,11 @@ class Bullets;
 class Loot;
 class Cell;
 class Map;
+class Cluster;
 
 
+typedef std::weak_ptr<Cell> WeakCellPtr;
+typedef std::shared_ptr<Cell> CellPtr;
 
 namespace MathsHelper{
 	float RandomRange(float min, float max);

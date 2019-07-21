@@ -19,11 +19,9 @@ Cell::Cell(XMVECTOR position, Cluster* owner) {
 	m_owner = owner->GetOwner();
 }
 
-// this method does not clear the pointers to this cell. especially those held by its neighbours.
-// such a method will be implemented seperatly to streamline batch deletion.
+// smartptrs remove the need for manual deletion of many game objects and manual pointers
 
 Cell::~Cell() {
-	// delete all entities associated with the cell.
 	delete m_gameObject;
 }
 
@@ -69,12 +67,10 @@ void Cell::Initialise() {
 }
 
 void Cell::Update(float timestep) {
-	EnableUpdate();
 	if (m_health <= 0) {
 		GameObject* loot = m_owner->AddLoot(m_type, "Diffuse Texture Fog Shader", "Hexagon", m_type, m_position, 1);
 		SetType("Air", true, false);
-		m_owner->RenderCheck(this);
-		CheckRender();
+		m_owner->RenderCheck(m_location);
 		loot->Resize(0.1f);
 	}
 }
@@ -83,36 +79,18 @@ Hex Cell::GetLocation(){
 	return m_location;
 }
 
-Cell** Cell::GetNeigbours() {
+WeakCellPtr* Cell::GetNeigbours() {
 	return (this->*m_initialised)();
 }
 
-Cell** Cell::_GetNeigbours() {
+WeakCellPtr* Cell::_GetNeigbours() {
 	return m_neighbours;
 }
 
-Cell** Cell::_GetNeigboursInit() {
+WeakCellPtr* Cell::_GetNeigboursInit() {
 	Initialise();
 	return m_neighbours;
 }
-
-void Cell::DisableUpdate() {
-	m_cluster->DisableUpdate(this);
-}
-
-void Cell::EnableUpdate() {
-	m_cluster->EnableUpdate(this);
-}
-
-
-void Cell::DisableRender() {
-	m_cluster->DisableRender(this);
-}
-
-void Cell::EnableRender() {
-	m_cluster->EnableRender(this);
-}
-
 
 bool Cell::CheckRender() {
 	bool renderable = false;
@@ -120,14 +98,14 @@ bool Cell::CheckRender() {
 	// the result is that cells that have no faces visible to the player are still rendered, BUT this is still twice as efficient compared to the other version.
 	if (!renderable && IsSolid()) {
 		for (int i = 0; i < 20 && !renderable; i++) {
-			if (!GetNeigbours()[i]->IsSolid()) {
-				EnableRender();
+			CellPtr current = GetNeigbours()[i].lock();
+			if (!current) {
+				Initialise();
+			}
+			if (!current->IsSolid()) {
 				renderable = true;
 			}
 		}
-	}
-	else {
-		DisableRender();
 	}
 	return renderable;
 }
@@ -135,5 +113,11 @@ bool Cell::CheckRender() {
 void Cell::Uninitialise()
 {
 	m_initialised = &Cell::_GetNeigboursInit;
+}
 
+CellPtr Cell::operator[](int index) {
+	CellPtr target = m_neighbours[index].lock();
+	if (target) return target;
+	Initialise();
+	return m_neighbours[index].lock();
 }

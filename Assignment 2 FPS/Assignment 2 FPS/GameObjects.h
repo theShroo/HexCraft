@@ -44,6 +44,7 @@ public:
 	virtual Loot* GetLoot() { return 0; }
 	virtual Player* GetPlayer() { return 0; }
 
+	
 
 	virtual void Render(Direct3D* renderer, Camera* cam);
 	void Move(DirectX::XMVECTOR direction);

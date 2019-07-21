@@ -8,9 +8,9 @@ class Map;
 class Cluster {
 private:
 	//cluster tile data stored here.
-	std::unordered_map<HexLogic::Hex, Cell*, HexLogic::hash_Hex> m_cluster;
-	std::unordered_map<PointerKey, Cell*, PointerHash> m_cellRenderables;
-	std::unordered_map<PointerKey, Cell*, PointerHash> m_cellUpdatables;
+	std::unordered_map<HexLogic::Hex, CellPtr, HexLogic::hash_Hex> m_cluster;
+	std::unordered_map<PointerKey, CellPtr, PointerHash> m_cellRenderables;
+	std::unordered_map<PointerKey, CellPtr, PointerHash> m_cellUpdatables;
 	std::unordered_map<PointerKey, GameObject*, PointerHash> m_entities;
 
 	int m_clustersize;
@@ -19,7 +19,7 @@ private:
 	bool m_initialised = 0;
 	void _Initialise();
 
-	void _Deinitialise();
+	//void _Deinitialise();
 
 public:
 
@@ -28,15 +28,15 @@ public:
 
 	operator PointerKey() { return PointerKey{ reinterpret_cast<size_t>(this) }; }
 
-	Cell* GetCell(HexLogic::Hex cell);
+	CellPtr GetCell(HexLogic::Hex cell);
 	Map* GetOwner();
 	int GetCount();
-	Cell* CheckCell(HexLogic::Hex cell);
+	// CellPtr CheckCell(HexLogic::Hex cell);
 	void Update(float timestep, std::vector<GameObject*> &entitiesToUpdate, DirectX::XMVECTOR center);
-	void DisableUpdate(Cell* cell);
-	void EnableUpdate(Cell* cell);
-	void DisableRender(Cell* cell);
-	void EnableRender(Cell* cell);
+	void DisableUpdate(CellPtr cell);
+	void EnableUpdate(CellPtr cell);
+	void DisableRender(CellPtr cell);
+	void EnableRender(CellPtr cell);
 	void Render(Direct3D* renderer, Camera* cam);
 	std::unordered_map<PointerKey, GameObject*, PointerHash>* GetEntities();
 	void Clean(HexLogic::Hex center);

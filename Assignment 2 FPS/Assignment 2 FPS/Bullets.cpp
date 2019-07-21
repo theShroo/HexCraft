@@ -39,7 +39,7 @@ void Bullets::DoCollision(PhysicsObject* other, Map* Map) {
 	other->Damage(5);
 }
 
-void Bullets::DoCollision(Cell* other, Map* Map) {
+void Bullets::DoCollision(CellPtr other, Map* Map) {
 	Map->RemoveObject(this);
 	other->Break(5, 0);
 }

@@ -76,6 +76,7 @@ private:
 	// performance optimisation data for performance update 1.
 	HexLogic::Hex m_currentPosition;
 	std::function<void(float a)> Game::ActiveUpdateFunction();
+	std::function<void(float a)> Game::InventoryUpdateFunction();
 	unsigned m_activeDistance;
 	bool m_updated;
 	int m_clustersize;
